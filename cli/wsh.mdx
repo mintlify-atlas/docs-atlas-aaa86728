@@ -1,0 +1,103 @@
+---
+title: "wsh — GuLiN's Command-Line Companion Tool"
+sidebarTitle: "wsh"
+description: "wsh is a lightweight CLI binary bundled with GuLiN Terminal that lets you control blocks, manage files, send AI messages, and configure settings from any shell."
+---
+
+`wsh` is GuLiN's command-line companion — a lightweight binary that connects to the running GuLiN application to control blocks, manage files, send AI messages, and configure settings. Every terminal block inside GuLiN has `wsh` available on its `PATH`, so you can script and automate the terminal from the command line without any extra setup.
+
+## Installation
+
+`wsh` is bundled with GuLiN and is automatically installed and placed on the `PATH` of every terminal block at startup — no manual steps are required on your local machine.
+
+<Note>
+  When you open an SSH connection in GuLiN, the application automatically installs `wsh` on the remote host as well, provided the `conn:wshenabled` setting is `true` (the default). This means all `wsh` commands work identically on remote machines without any manual copying or installation.
+</Note>
+
+You can verify that `wsh` is available and check the version by running:
+
+```bash
+wsh --version
+```
+
+To reinstall `wsh` on a remote host at any time, use:
+
+```bash
+wsh conn reinstall user@hostname
+```
+
+## How It Works
+
+`wsh` communicates with the `gulinsrv` backend process over a **Unix domain socket** (or stdio in some modes). The connection details are injected into each terminal block's environment via the `GULIN_JWT` environment variable. When `wsh` starts, it:
+
+1. Reads the `GULIN_JWT` token from the environment.
+2. Extracts the RPC context (socket path, block ID, tab ID) from the token.
+3. Opens a domain socket connection to `gulinsrv`.
+4. Authenticates using the token.
+5. Dispatches the requested `WshRpcInterface` command and streams the result.
+
+Because `GULIN_JWT` is automatically set in every GuLiN-managed terminal block, `wsh` commands work out of the box. Running `wsh` outside of a GuLiN terminal session will fail with:
+
+```
+wsh must be run inside a Gulin-managed SSH session (GULIN_JWT not found)
+```
+
+## Global Flags
+
+The following persistent flag is available on every `wsh` command:
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--block` | `-b` | `string` | `""` (current block) | Target block ID, block number, or the literal `this` for commands that operate on a specific block |
+
+## Output
+
+`wsh` follows standard Unix conventions:
+
+- **Normal output** is written to **stdout**.
+- **Error messages** are written to **stderr**.
+- A **non-zero exit code** is returned whenever a command fails.
+
+When running inside a GuLiN terminal block in raw/pty mode, `wsh` automatically converts bare `\n` newlines to `\r\n` so output renders correctly.
+
+## Usage Pattern
+
+```bash
+wsh <command> [flags] [args]
+```
+
+Most commands also accept the global `-b` flag to target a specific block:
+
+```bash
+wsh <command> -b <blockid|blocknum|this> [flags] [args]
+```
+
+## Command Quick Reference
+
+| Command | Description |
+|---------|-------------|
+| `wsh ai` | Append files or a message to the GuLiN AI sidebar prompt |
+| `wsh ssh` | Connect the current (or a new) terminal block to a remote SSH host |
+| `wsh setmeta` | Set metadata key-value pairs on a block or other entity |
+| `wsh getmeta` | Get metadata from a block or other entity |
+| `wsh setconfig` | Update GuLiN global settings key-value pairs |
+| `wsh editconfig` | Open a GuLiN configuration file in the editor |
+| `wsh setvar` | Set one or more persistent variables for a block |
+| `wsh getvar` | Get a persistent variable (or all variables) from a block |
+| `wsh createblock` | Create a new block with a specified view and metadata |
+| `wsh deleteblock` | Delete a block |
+| `wsh focusblock` | Move keyboard focus to a specific block |
+| `wsh editor` | Open a file in GuLiN's built-in editor (blocks until closed) |
+| `wsh run` | Run a command in a new terminal block |
+| `wsh notify` | Send a desktop notification |
+| `wsh setbg` | Set the background image or color for the current tab |
+| `wsh secret` | Manage application secrets (get, set, list, delete, UI) |
+| `wsh file` | Manage files across local and remote systems |
+| `wsh term` | Open a new terminal block in a specified directory |
+| `wsh conn` | Manage SSH and WSL connections |
+| `wsh launch` | Launch a configured widget by its ID |
+| `wsh gulin` | Talk directly to the GuLiN Agent from the terminal |
+| `wsh gulinpath` | Print paths to GuLiN config, data, or log directories |
+| `wsh blocks` | List and inspect blocks across workspaces |
+
+For the full documentation of every command, flag, and example, see the [wsh Commands Reference](/cli/wsh-commands).

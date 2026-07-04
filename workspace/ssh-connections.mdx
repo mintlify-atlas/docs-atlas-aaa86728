@@ -1,0 +1,110 @@
+---
+title: "SSH Connections: Durable Remote Sessions in GuLiN"
+sidebarTitle: "SSH"
+description: "Connect to remote hosts with durable SSH sessions that survive network drops, with automatic reconnection and WSH agent integration for richer file and AI workflows."
+---
+
+GuLiN provides durable SSH sessions that survive network interruptions, connection drops, and GuLiN restarts. When a connection is lost, GuLiN automatically attempts to reconnect — your terminal scrollback and session state are preserved. The optional `wsh` agent installed on the remote host unlocks deeper integration: remote file editing, environment variable sync, and AI context from remote terminals.
+
+## Opening a Connection
+
+<Steps>
+  <Step title="From the terminal with wsh">
+    Run the following command from any terminal block to connect the current block to a remote host:
+
+    ```bash
+    wsh ssh user@hostname
+    ```
+
+    To open the connection in a **new block** instead of the current one, add the `--new` flag:
+
+    ```bash
+    wsh ssh --new user@hostname
+    ```
+
+    You can specify an identity file for public-key authentication:
+
+    ```bash
+    wsh ssh -i ~/.ssh/id_ed25519 user@hostname
+    ```
+  </Step>
+  <Step title="From the SSH launcher in the UI">
+    Open the launcher panel (available from the widget bar or via the command palette). Start typing a hostname — GuLiN will suggest entries from your `~/.ssh/config` file and from previously connected hosts stored in `connections.json`.
+  </Step>
+</Steps>
+
+## SSH Config File
+
+GuLiN reads `~/.ssh/config` for host definitions, aliases, identity files, proxy jumps, and all standard SSH keywords. Any host you have configured there will appear as a suggestion in the SSH launcher automatically.
+
+```
+Host myserver
+    HostName 203.0.113.42
+    User deploy
+    IdentityFile ~/.ssh/deploy_key
+```
+
+## Connection Configuration
+
+Per-connection settings are stored in `~/.config/gulin/connections.json`. Each key in the file is a connection identifier (e.g., `"user@hostname"`), and its value is an object of `ConnKeywords`:
+
+```json
+{
+  "deploy@203.0.113.42": {
+    "conn:wshenabled": true,
+    "conn:askbeforewshinstall": true,
+    "term:theme": "nord",
+    "ssh:identityfile": ["~/.ssh/deploy_key"]
+  }
+}
+```
+
+Key fields:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `conn:wshenabled` | bool | `true` | Enable the WSH agent on this connection |
+| `conn:askbeforewshinstall` | bool | `true` | Prompt before installing WSH on the remote host |
+| `conn:wshpath` | string | — | Override the path where WSH is installed remotely |
+| `conn:shellpath` | string | — | Override the shell used for the remote session |
+| `ssh:identityfile` | string[] | — | Identity files for this specific connection |
+
+<Note>
+  When `conn:askbeforewshinstall` is `true` (the default), GuLiN will show a confirmation prompt the first time it tries to install the `wsh` agent on a new remote host. Set it to `false` to allow silent installation for trusted hosts, or set `conn:wshenabled` to `false` to disable the agent entirely for that connection.
+</Note>
+
+## Session Durability
+
+GuLiN terminal sessions are durable by default when connected via SSH. If the network drops or you close and reopen GuLiN, the session reconnects automatically. You do not need to manually re-establish the connection or replay commands.
+
+Durability is controlled per-connection (and globally) with the `term:durable` setting. When enabled, the remote shell process is kept alive between disconnects.
+
+## WSH Agent
+
+The `wsh` agent is a small binary installed on remote hosts the first time you connect. It enables:
+
+- **Remote file editing** — open remote files directly in the GuLiN Monaco editor from any terminal block
+- **Environment variable sync** — shell variables set in a remote terminal propagate to other GuLiN blocks on the same connection
+- **AI context** — the GuLiN AI panel can read output from remote terminals and access remote files for context
+
+The agent is controlled by `conn:wshenabled`. Set it to `false` in `connections.json` for a specific host to use a plain SSH session without the agent.
+
+## Remote File Editing
+
+Once connected, you can open any file on the remote host in GuLiN's integrated editor without leaving the terminal:
+
+```bash
+wsh edit /etc/nginx/nginx.conf
+```
+
+GuLiN streams the file over the WSH agent connection, opens it in a Monaco editor block on your local machine, and syncs saves back to the remote host transparently.
+
+<Tip>
+  You can open a remote file from a local terminal too — just prefix the path with the connection identifier:
+
+  ```bash
+  wsh edit user@hostname:/path/to/file.conf
+  ```
+
+  This is useful when you want to edit a remote config without first opening a full SSH terminal block.
+</Tip>

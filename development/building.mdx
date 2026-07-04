@@ -1,0 +1,163 @@
+---
+title: "Building GuLiN Terminal from Source (macOS, Linux, Windows)"
+sidebarTitle: "Building"
+description: "Step-by-step guide to installing prerequisites, cloning the repository, and building GuLiN Terminal locally for development or packaging."
+---
+
+GuLiN Terminal is built from a single repository that combines a Go backend, an Electron main process, and a React/TypeScript frontend. The `task` build tool orchestrates every step — from installing dependencies to producing signed, distributable packages. This page walks you through setting up your environment and running the most common build commands.
+
+## Prerequisites
+
+You need four core tools before you can build GuLiN. On Linux and Windows an additional Zig compiler is required for CGO static linking.
+
+<Tabs>
+  <Tab title="macOS">
+    macOS has no platform-specific dependencies beyond the core tools below. Install them in any order.
+
+    | Tool | Version | Install |
+    |------|---------|---------|
+    | Go | 1.22+ | [go.dev/doc/install](https://go.dev/doc/install) |
+    | Node.js | 22 LTS | [nodejs.org/en/download](https://nodejs.org/en/download) |
+    | Task | latest | [taskfile.dev/installation](https://taskfile.dev/installation/) |
+  </Tab>
+  <Tab title="Linux">
+    Linux requires `zip` and the [Zig](https://ziglang.org/) compiler for statically linking CGO. Choose the commands for your distribution.
+
+    **Debian / Ubuntu**
+    ```bash
+    sudo apt install zip snapd
+    sudo snap install zig --classic --beta
+    ```
+
+    **Fedora / RHEL**
+    ```bash
+    sudo dnf install zip zig
+    ```
+
+    **Arch**
+    ```bash
+    sudo pacman -S zip zig
+    ```
+
+    Then install the core tools:
+
+    | Tool | Version | Install |
+    |------|---------|---------|
+    | Go | 1.22+ | [go.dev/doc/install](https://go.dev/doc/install) |
+    | Node.js | 22 LTS | [nodejs.org/en/download](https://nodejs.org/en/download) |
+    | Task | latest | [taskfile.dev/installation](https://taskfile.dev/installation/) |
+
+    <Note>
+      If you intend to produce distributable packages (`.deb`, `.rpm`, `.snap`, `.AppImage`) you will also need `fpm`, `rpm`, `snapd`, `snapcraft`, `lxd`, `libarchive-tools`, `binutils`, `libopenjp2-tools`, and `squashfs-tools`. For Linux ARM64 packaging, install `fpm` via [Gem](https://rubygems.org/gems/fpm) and prefix the package command with `USE_SYSTEM_FPM=1`.
+    </Note>
+  </Tab>
+  <Tab title="Windows">
+    Windows requires the [Zig](https://ziglang.org/) compiler for statically linking CGO.
+
+    Install Zig using your preferred package manager — see the [official getting-started guide](https://ziglang.org/learn/getting-started/#managers) for WinGet, Chocolatey, and Scoop instructions.
+
+    Then install the core tools:
+
+    | Tool | Version | Install |
+    |------|---------|---------|
+    | Go | 1.22+ | [go.dev/doc/install](https://go.dev/doc/install) |
+    | Node.js | 22 LTS | [nodejs.org/en/download](https://nodejs.org/en/download) |
+    | Task | latest | [taskfile.dev/installation](https://taskfile.dev/installation/) |
+  </Tab>
+</Tabs>
+
+## Clone and Build
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/gulindev/gulin.git
+    cd gulin
+    ```
+  </Step>
+  <Step title="Install all dependencies">
+    Run `task init` once after cloning (and any time you suspect dependency issues). This installs npm packages, runs `go mod tidy`, and installs docs dependencies.
+
+    ```bash
+    task init
+    ```
+  </Step>
+  <Step title="Start the development server">
+    Launch GuLiN with Vite's dev server and Hot Module Reloading enabled. The app will reload automatically as you edit frontend code.
+
+    ```bash
+    task dev
+    ```
+
+    <Tip>
+      `task dev` automatically builds the Go backend (`gulinsrv` + `wsh`) before starting Electron, so you don't need to run `task build:backend` separately on a clean checkout.
+    </Tip>
+  </Step>
+</Steps>
+
+## All Task Commands
+
+The full build system is defined in [`Taskfile.yml`](https://taskfile.dev). Use `task --list` to see a live description of every available task.
+
+| Command | Description |
+|---------|-------------|
+| `task init` | Install all dependencies (npm + `go mod tidy` + docs npm) |
+| `task dev` | Development mode — starts Electron via the Vite dev server with HMR |
+| `task start` | Standalone mode — builds and runs without a dev server; no hot reload |
+| `task package` | Production build + installer; output artifacts are placed in `make/` |
+| `USE_SYSTEM_FPM=1 task package` | Linux ARM64 packaging (requires system `fpm` installed via Gem) |
+| `task build:backend` | Build both `gulinsrv` and `wsh` binaries into `dist/bin/` |
+| `task build:schema` | Regenerate the JSON configuration schema in `dist/schema/` |
+| `task generate` | Regenerate TypeScript bindings from the Go backend (runs `build:schema` first) |
+| `task check:ts` | TypeScript typecheck across the frontend and Electron main process |
+| `task clean` | Remove the `make/` and `dist/` directories |
+| `task docsite` | Start the internal docsite dev server (`docs/`) |
+
+<Info>
+  All task commands that build the app will automatically run `npm install` and `go mod tidy` if their sources have changed since the last run, so you rarely need to manage dependencies manually after `task init`.
+</Info>
+
+## Debugging
+
+### Frontend
+
+Open Chrome DevTools in the running app with the keyboard shortcut:
+
+- **macOS**: `Cmd+Option+I`
+- **Linux / Windows**: `Ctrl+Option+I`
+
+All `console.log` output and runtime errors appear in the **Console** tab. The **Sources** tab has full source-map support for both the React frontend and the Electron preload scripts.
+
+### Backend Logs
+
+Both the Electron (Node.js) backend and the Go `gulinsrv` process write to the same log file when running a development build:
+
+```
+~/.gulin-dev/gulinapp.log
+```
+
+Tail this file in a separate terminal to see live backend output:
+
+```bash
+tail -f ~/.gulin-dev/gulinapp.log
+```
+
+## Releasing
+
+GuLiN releases are managed entirely through GitHub Actions. The workflow is:
+
+<Steps>
+  <Step title="Bump Version">
+    Navigate to the [Actions tab](https://github.com/gulindev/gulin/actions) and trigger the **Bump Version** workflow. Choose a SemVer bump (`patch`, `minor`, `major`, or `none`) and whether this is a prerelease. The workflow creates a new Git tag automatically.
+  </Step>
+  <Step title="Build Helper">
+    Once a tag is pushed, the **Build Helper** workflow starts automatically. It calls `task package` on macOS, Linux, and Windows runners — building `gulinsrv`, `wsh`, the Vite frontend, and invoking `electron-builder` to produce signed, distributable packages. Artifacts land in a draft GitHub Release.
+  </Step>
+  <Step title="Review and publish">
+    Download the draft artifacts, test them locally, then edit the GitHub Release to add a changelog and click **Publish**. The **Publish Release** workflow handles pushing to Homebrew, WinGet, Chocolatey, and Snap automatically.
+  </Step>
+</Steps>
+
+<Note>
+  See [`RELEASES.md`](https://github.com/gulindev/gulin/blob/main/RELEASES.md) in the repository for full details on update channels, package manager automation, and the `electron-updater` auto-update system.
+</Note>

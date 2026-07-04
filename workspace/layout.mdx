@@ -1,0 +1,109 @@
+---
+title: "Workspace Layout: Blocks, Tabs & Widget Bar"
+sidebarTitle: "Layout"
+description: "Learn how GuLiN's tiled workspace organizes blocks in a drag-and-drop grid, and how to configure tabs, widgets, focus behavior, and display settings."
+---
+
+GuLiN's workspace is a flexible, tiled canvas where every panel — terminals, file editors, web browsers, the AI assistant, and more — is a **block** arranged in a resizable drag-and-drop grid. You can split the canvas however you like, save layouts across tabs, and tune every display detail through settings keys.
+
+## Blocks
+
+A block is the fundamental unit of the GuLiN workspace. Each block hosts exactly one view — a terminal session, a file browser, a web page, an AI chat panel, or a system-info widget — and can be resized, moved, and focused independently of every other block on screen.
+
+Blocks are created from the widget bar at the top of the workspace. Clicking any widget icon instantly adds a new block of that type to the current tab. The default block type created when you press the general "new block" shortcut is controlled by the `app:defaultnewblock` setting (factory default: `term`).
+
+## Default Widget Types
+
+The following widget types ship with GuLiN out of the box. Each corresponds to an entry in `defaultwidgets` (sourced from `widgets.json`):
+
+<CardGroup cols={2}>
+  <Card title="Terminal" icon="square-terminal">
+    A full shell session (`view: term`, `controller: shell`). Supports durable SSH connections and AI command completion via `#` + Tab.
+  </Card>
+  <Card title="Files" icon="folder">
+    A file browser that opens at `~` by default (`view: preview`). Supports markdown, image, video, PDF, and CSV preview inline.
+  </Card>
+  <Card title="Web" icon="globe">
+    An embedded web browser (`view: web`). Supports AI-driven page reading, DOM clicks, and form filling — all with user approval.
+  </Card>
+  <Card title="AI (GulinAI)" icon="sparkles">
+    The GuLiN AI panel (`view: gulinai`). Connects to Ollama, OpenAI, Claude, Gemini, DeepSeek, and more. Reads terminal output, files, and open web tabs for context.
+  </Card>
+  <Card title="SysInfo" icon="chart-line">
+    A real-time system information widget (`view: sysinfo`). Displays CPU, memory, and other host metrics as live charts.
+  </Card>
+  <Card title="Memories" icon="brain">
+    The GuLiN Brain memory grid (`view: memory-grid`). Lists the AI's long-term memories, lessons, and project contexts stored via Auto-RAG.
+  </Card>
+</CardGroup>
+
+## Creating Blocks
+
+Click any icon in the **widget bar** at the top of the window to add a new block of that type to the active tab. The block is inserted into the grid and immediately focused.
+
+You can also create blocks from the terminal using the `wsh` command:
+
+```bash
+wsh term              # open a new terminal block in the current directory
+wsh term ~/projects   # open a terminal rooted at a specific path
+```
+
+The `app:defaultnewblock` setting controls which widget type is created when no specific type is requested. The factory default is `"term"`.
+
+## Arranging Blocks
+
+Blocks can be dragged by their header to any position in the tiled grid. Drop a block onto another block to split that cell. Grab any edge or corner of a block border to resize it.
+
+The gap between tiles is configurable with the `window:tilegapsize` setting (factory default: `3` pixels). Set it to `0` for a seamless, borderless layout.
+
+## Tabs
+
+Tabs let you maintain multiple independent workspace layouts in a single window. Each tab holds its own grid of blocks, and GuLiN keeps recently used tabs live in memory so they restore instantly when you switch back.
+
+The number of tabs held in the in-memory cache is controlled by `window:maxtabcachesize` (factory default: `10`). Tabs beyond the cache limit are serialized to disk and reloaded on demand.
+
+## Settings Reference
+
+| Setting Key | Type | Default | Description |
+|---|---|---|---|
+| `app:defaultnewblock` | string | `"term"` | Widget type created for generic new blocks |
+| `app:hideaibutton` | bool | `false` | Hide the floating AI panel button |
+| `app:focusfollowscursor` | string | `"off"` | Auto-focus behavior: `off`, `on`, or `term` |
+| `app:showoverlayblocknums` | bool | `false` | Show numbered overlays on each block |
+| `app:disablectrlshiftarrows` | bool | `false` | Disable Ctrl+Shift+Arrow block navigation |
+| `app:disablectrlshiftdisplay` | bool | `false` | Disable the Ctrl+Shift navigation display |
+| `window:tilegapsize` | int | `3` | Pixel gap between tiled blocks |
+| `window:maxtabcachesize` | int | `10` | Maximum number of tabs kept live in memory |
+
+## AI Button
+
+The floating AI panel button gives quick access to the GuLiN AI chat from anywhere in the workspace. If you prefer to open the AI panel only from the widget bar, you can hide the button:
+
+```json
+{
+  "app:hideaibutton": true
+}
+```
+
+## Focus Follows Cursor
+
+By default, block focus does **not** follow your mouse cursor — you click to focus. You can change this with `app:focusfollowscursor`:
+
+- **`"off"`** — click to focus (default)
+- **`"on"`** — focus follows the cursor over any block
+- **`"term"`** — focus follows cursor only over terminal blocks
+
+## Block Overlays and Number Display
+
+Setting `app:showoverlayblocknums` to `true` overlays each block with its number, making it easy to reference a specific block in AI commands or keyboard shortcuts.
+
+## Ctrl+Shift Navigation
+
+GuLiN supports Ctrl+Shift+Arrow keyboard shortcuts for moving focus between blocks without touching the mouse. If these shortcuts conflict with another application or shell binding, disable them individually:
+
+- **`app:disablectrlshiftarrows`** — turns off the Ctrl+Shift+Arrow focus-movement shortcuts
+- **`app:disablectrlshiftdisplay`** — hides the Ctrl+Shift navigation indicator overlay that appears when the modifier keys are held
+
+<Note>
+  All settings above can be placed in `~/.config/gulin/settings.json`. Open it quickly with `wsh editconfig` from any terminal block.
+</Note>

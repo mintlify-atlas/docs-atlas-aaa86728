@@ -1,0 +1,124 @@
+---
+title: "Agentic Tools: What the GuLiN AI Can Do Autonomously"
+sidebarTitle: "Agentic Tools"
+description: "Discover the built-in tools GuLiN's AI agent can invoke — from running shell commands to browsing the web, managing files, and storing long-term memories."
+---
+
+GuLiN ships a set of built-in tools that the AI agent can invoke autonomously as part of answering your requests or completing multi-step tasks. Rather than just suggesting what you should do, the agent can act directly — running a command, reading a web page, editing a file, or saving a memory — all within a single conversation turn. Every action that modifies state requires your explicit approval, keeping you in control at every step.
+
+<Warning>
+**Approval gates**: All tools that write, execute, click, or type — `term_run_command`, `web_click`, `web_type`, and all file-write tools — require your **explicit manual confirmation** in the chat before they run. GuLiN will never execute a destructive or state-changing action without first presenting it to you for approval. Read-only tools (`web_read_page`, `capture_screenshot`, `brain_list`, `brain_search`, `apimanager_list`) run without a confirmation prompt.
+</Warning>
+
+<Note>
+If the agent is heading in the wrong direction mid-execution, use **Rewind & Merge**: send a new corrective message at any time. GuLiN atomically cancels the current task, terminates all pending tool calls, rewinds the history, and merges your new instruction. See the [AI Overview](/ai/overview#rewind--merge) page for details.
+</Note>
+
+## Tool Reference
+
+<CardGroup cols={2}>
+  <Card title="term_run_command" icon="terminal">
+    Execute a shell command in any open terminal widget. The agent proposes the command and waits for your approval before running it. Output is captured and fed back into the conversation automatically.
+  </Card>
+  <Card title="web_read_page" icon="globe">
+    Read the full text content of any web page open in a GuLiN browser tab. Ideal for summarizing documentation, following tutorials, or extracting data without leaving the terminal.
+  </Card>
+  <Card title="web_click" icon="arrow-pointer">
+    Click a DOM element on an open web page — buttons, links, checkboxes, and dropdowns. Requires your approval before any click is sent.
+  </Card>
+  <Card title="web_type" icon="keyboard">
+    Type text into a form field on an open web page — search boxes, input fields, and text areas. Requires your approval, so the agent never submits forms without permission.
+  </Card>
+  <Card title="capture_screenshot" icon="camera">
+    Capture the visual state of any GuLiN widget as an image. The AI uses this to inspect rendering output, UI bugs, or dashboard states that are not representable as text.
+  </Card>
+  <Card title="brain_update / brain_list / brain_search" icon="brain">
+    The three Gulin Brain memory tools. Save new knowledge, list all stored memories, or run a deep semantic vector search. See the [Memory](/ai/memory) page for full details.
+  </Card>
+  <Card title="apimanager_list / apimanager_call / apimanager_register / apimanager_delete" icon="key">
+    Manage and invoke stored API connections. List registered APIs, call an endpoint, register a new connection, or remove one from the secure API Manager vault.
+  </Card>
+  <Card title="File Tools" icon="file-code">
+    Read, write, edit, and create files in your workspace. The agent can read any file to gather context (no approval needed) and proposes specific writes or edits that you confirm before they are applied.
+  </Card>
+</CardGroup>
+
+## Approval Requirements
+
+| Tool | Category | Approval Required |
+|------|----------|:-----------------:|
+| `term_run_command` | Terminal | ✅ Yes |
+| `web_read_page` | Web | ❌ No |
+| `web_click` | Web | ✅ Yes |
+| `web_type` | Web | ✅ Yes |
+| `capture_screenshot` | System | ❌ No |
+| `brain_update` | Memory | ❌ No |
+| `brain_list` | Memory | ❌ No |
+| `brain_search` | Memory | ❌ No |
+| `apimanager_list` | API Manager | ❌ No |
+| `apimanager_call` | API Manager | ✅ Yes |
+| `apimanager_register` | API Manager | ✅ Yes |
+| `apimanager_delete` | API Manager | ✅ Yes |
+| File read | Files | ❌ No |
+| File write / edit / create | Files | ✅ Yes |
+
+## Terminal Tool: `term_run_command`
+
+The terminal tool allows the agent to run any shell command in any open terminal widget inside GuLiN. The workflow is always:
+
+1. The agent decides a command is needed and proposes it in the chat.
+2. An approval prompt appears — you can inspect the exact command before it runs.
+3. You approve or reject.
+4. On approval, the command runs in the target terminal and its output is captured back into the AI's context automatically.
+
+This means the agent can orchestrate multi-step workflows — building a project, running tests, checking logs, fixing errors — without you having to manually copy-paste each command.
+
+```bash
+# Example: You ask "Run the test suite and summarize the failures"
+# The agent proposes:
+npm test -- --reporter=verbose
+
+# After your approval, it runs the command, reads the output,
+# and summarizes the failed tests directly in the chat.
+```
+
+## Web Tools: `web_read_page`, `web_click`, `web_type`
+
+GuLiN's integrated browser is a first-class agentic surface. The AI can navigate and interact with web pages open in browser tabs inside GuLiN.
+
+- **`web_read_page`**: Reads the full text of any open tab — articles, documentation, dashboards, or API responses — and uses it as context. No approval needed since it is read-only.
+- **`web_click`**: Clicks DOM elements. Useful for navigating paginated content, expanding accordions, or interacting with web apps. Always requires approval.
+- **`web_type`**: Types into input fields, search boxes, or forms. Always requires approval so the agent never submits data on your behalf without confirmation.
+
+The User-in-the-Loop layer for web actions is non-negotiable: GuLiN will never send a form submission, click a confirm button, or type into a password field without first showing you exactly what it is about to do.
+
+## Screenshot Tool: `capture_screenshot`
+
+The `capture_screenshot` tool gives the AI literal vision over your terminal workspace. It captures the current rendered state of any GuLiN widget as an image.
+
+This is particularly useful for:
+
+- Debugging visual rendering errors in dashboards or custom widgets.
+- Verifying that a CSS change or layout adjustment looks correct.
+- Inspecting the output of a terminal command that produces graphical or tabular output that is hard to represent as plain text.
+
+The AI uses the screenshot to identify visual issues and can then propose targeted fixes.
+
+## API Manager Tools
+
+The API Manager is GuLiN's secure vault for managing external service connections — REST APIs, cloud credentials, and custom endpoints. The AI can interact with the vault through four tools:
+
+- **`apimanager_list`**: List all registered API connections (names only, not secrets). Read-only, no approval needed.
+- **`apimanager_call`**: Invoke a registered API endpoint. Requires approval so you can inspect the request before it is sent.
+- **`apimanager_register`**: Add a new API connection to the vault. Requires approval.
+- **`apimanager_delete`**: Remove a connection from the vault. Requires approval.
+
+## File Tools
+
+The agent can interact with files in your workspace as a natural part of any task — reading configs to understand the project, writing new files, or making targeted edits.
+
+- **Read**: The agent reads any file to gather context. This is automatic and requires no approval.
+- **Write / Create**: Propose creating a new file with full content. You review and approve before the file is written to disk.
+- **Edit**: Propose a targeted change to an existing file. The agent shows you the before/after diff for approval.
+
+File operations work seamlessly with the rest of the agentic loop: the agent can read a config, run a command based on what it finds, observe the output, and edit the file to fix a problem — all in one conversation turn, with approvals at each write step.

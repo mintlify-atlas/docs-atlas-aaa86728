@@ -1,0 +1,133 @@
+---
+title: "Connect and Query Databases with GuLiN DB Maestro"
+sidebarTitle: "Databases"
+description: "GuLiN's DB Maestro connects natively to Oracle, PostgreSQL, MySQL, SQL Server, MongoDB, SQLite, and Dremio — query, visualize, and export data through natural language."
+---
+
+GuLiN's **DB Maestro** feature provides native connections to multiple databases directly inside your terminal. Tell the AI which database you want to work with, hand it the credentials once, and from that point forward you can run queries, generate complex SQL, and render the results as interactive dashboards — all without leaving the terminal window.
+
+## Supported Databases
+
+<CardGroup cols={2}>
+  <Card title="Oracle" icon="database">
+    Native driver via `sijms/go-ora/v2`. Supports standard Oracle connection strings and TNS aliases.
+  </Card>
+  <Card title="PostgreSQL" icon="database">
+    Powered by `lib/pq`. Works with any PostgreSQL-compatible endpoint including Amazon RDS and Supabase.
+  </Card>
+  <Card title="MySQL" icon="database">
+    Uses `go-sql-driver/mysql`. Compatible with MySQL 5.7+, MariaDB, and PlanetScale.
+  </Card>
+  <Card title="Microsoft SQL Server" icon="database">
+    Via `microsoft/go-mssqldb`. Full support for Azure SQL Database and on-premise SQL Server instances.
+  </Card>
+  <Card title="MongoDB" icon="database">
+    Backed by the official `go.mongodb.org/mongo-driver`. Supports Atlas clusters and self-hosted replica sets.
+  </Card>
+  <Card title="SQLite" icon="database">
+    Embedded driver `mattn/go-sqlite3` — no server required. Ideal for local development and file-based datasets.
+  </Card>
+  <Card title="Dremio" icon="database">
+    Big-data SQL analytics via the API Manager integration. See the [Dremio integration page](/integrations/dremio) for the full setup guide.
+  </Card>
+</CardGroup>
+
+---
+
+## Connecting to a Database
+
+Tell the AI which database engine you want to use and provide the connection credentials. GuLiN will establish the connection and keep it available for the rest of the session.
+
+```
+Connect to my PostgreSQL database at localhost:5432, database "analytics", user "readonly", password "s3cr3t".
+```
+
+Once connected, you can issue any follow-up query in plain language. The AI interprets your intent, translates it to the appropriate query language for the engine, executes it, and returns the results directly in the chat.
+
+<Note>
+  Credentials you provide are passed to GuLiN's secret store, which encrypts them in the local database. They are never stored in plain text or sent to any external service.
+</Note>
+
+---
+
+## Generating Queries
+
+Describe what you want in natural language and the AI generates the SQL (or MongoDB aggregation pipeline) for you. You do not need to know the exact table or collection names up front — GuLiN can introspect the schema automatically.
+
+```
+Show me the total revenue per region for the last 90 days, broken down by product category, sorted descending.
+```
+
+The AI translates that description into a SQL query, runs it against the connected database, and streams the results back.
+
+<Tip>
+  For complex operations — multi-table joins, window functions, conditional aggregations — describe the business question rather than the SQL shape. For example: "Which customers placed more than five orders last quarter but haven't ordered anything this quarter?" GuLiN will craft the full query including the necessary joins and date filters.
+</Tip>
+
+---
+
+## Visualizing Results
+
+Query results can be rendered as interactive dashboards directly in the terminal using **recharts**-based components. GuLiN supports the following chart types:
+
+| Type | Key | Best for |
+|------|-----|----------|
+| Bar | `bar` | Categorical comparisons |
+| Line | `line` | Trends over time |
+| Area | `area` | Accumulated volume |
+| Pie | `pie` | Proportional distributions |
+| Radar | `radar` | Multi-variable comparisons |
+| Composed | `composed` | Combined bars and lines |
+| Grid | `grid` | Tabular data with search and filter |
+
+To render a dashboard, the AI emits a fenced code block containing dashboard metadata. GuLiN's renderer detects this metadata and replaces the raw block with the interactive chart widget.
+
+---
+
+## Dashboard Metadata
+
+Dashboards are configured through three metadata keys embedded in the AI's response:
+
+| Key | Description |
+|-----|-------------|
+| `dashboard:type` | Chart type — one of `bar`, `line`, `area`, `pie`, `radar`, `composed`, `grid` |
+| `dashboard:title` | Human-readable title displayed above the chart |
+| `dashboard:data` | JSON array of data objects to plot |
+
+Example of a complete dashboard metadata block:
+
+```json
+{
+  "dashboard:type": "bar",
+  "dashboard:title": "Monthly Revenue by Region — Q1 2025",
+  "dashboard:data": [
+    { "region": "North America", "revenue": 142500 },
+    { "region": "Europe",        "revenue": 98200  },
+    { "region": "Asia Pacific",  "revenue": 76800  },
+    { "region": "Latin America", "revenue": 31400  }
+  ]
+}
+```
+
+GuLiN captures the first valid data burst and freezes the render state, preventing constant re-renders during long-running queries.
+
+---
+
+## Exporting Data
+
+Every rendered dashboard includes built-in export options:
+
+- **Download as PNG** — Exports the chart as a high-resolution image with an optimized background, ready for reports or presentations.
+- **Export grid data** — When a `grid` chart is active, you can export the full tabular dataset as a CSV file directly from the widget toolbar.
+
+---
+
+## Security
+
+All database credentials are handled by GuLiN's **secret store**, an encrypted local database that lives entirely on your machine. Credentials are:
+
+- Encrypted at rest using the local secret store.
+- Never hard-coded into prompts or sent to AI providers.
+- Injected dynamically by the agent at query time.
+
+If you need to update or remove stored credentials, ask the AI to delete the entry from the secret store and register new ones, or manage them directly through the API Manager.

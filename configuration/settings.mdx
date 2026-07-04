@@ -1,0 +1,215 @@
+---
+title: "Configuring GuLiN Terminal: Settings Reference"
+sidebarTitle: "Settings"
+description: "Complete reference for GuLiN's settings.json, covering every namespace:key pair — from terminal fonts and AI tokens to window behavior and auto-update controls."
+---
+
+GuLiN stores all user preferences in a single JSON file called `settings.json`. Every key follows a `namespace:key` pattern (for example, `term:fontsize` or `window:tilegapsize`), making it straightforward to find, edit, or script any option. Changes to the file are picked up live — no restart is required.
+
+## Editing Settings
+
+There are two ways to change settings:
+
+<Note>
+  Run `wsh editconfig` inside a GuLiN terminal to open `settings.json` directly in the integrated config editor. Add `--magnified` (or `-m`) to open it in a larger, focused view. You can also open any other config file by passing its name, for example `wsh editconfig presets.json`.
+</Note>
+
+**Using the integrated editor:**
+
+```bash
+# Open settings.json in the GuLiN config editor
+wsh editconfig
+
+# Open in magnified mode
+wsh editconfig --magnified
+```
+
+**Using `wsh setconfig` for quick one-liners:**
+
+```bash
+# Set a single key
+wsh setconfig term:fontsize=14
+
+# Set multiple keys at once
+wsh setconfig window:tilegapsize=4 app:confirmquit=false
+```
+
+## Settings File Location
+
+| Platform | Path |
+|----------|------|
+| macOS    | `~/Library/Application Support/gulin/settings.json` |
+| Linux    | `~/.config/gulin/settings.json` |
+| Windows  | `%APPDATA%\gulin\settings.json` |
+
+---
+
+## Settings Reference
+
+### `app:` — Application Behavior
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `app:globalhotkey` | string | — | System-wide hotkey to bring GuLiN to the front from any application. Uses OS-specific modifier syntax (e.g., `Ctrl+Alt+Space`). |
+| `app:defaultnewblock` | string | `"term"` | The block type created when opening a new block. |
+| `app:showoverlayblocknums` | boolean | — | Show numbered overlays on each block when pressing Ctrl+Shift. |
+| `app:ctrlvpaste` | boolean | — | Enable Ctrl+V as a paste shortcut inside the terminal (useful on Windows/Linux). |
+| `app:confirmquit` | boolean | `true` | Show a confirmation dialog before quitting GuLiN. |
+| `app:hideaibutton` | boolean | `false` | Hide the AI button in the toolbar. |
+| `app:disablectrlshiftarrows` | boolean | `false` | Disable Ctrl+Shift+Arrow focus-navigation between blocks. |
+| `app:disablectrlshiftdisplay` | boolean | `false` | Disable the block-number overlay that appears on Ctrl+Shift. |
+| `app:focusfollowscursor` | string | `"off"` | Auto-focus blocks as the cursor moves: `off` (manual), `on` (any widget), `term` (terminal blocks only). |
+| `app:language` | string | `"en"` | UI language. Accepted values: `en`, `es`. |
+
+**Example:**
+
+```bash
+# Bring GuLiN forward with Ctrl+Alt+G, skip quit confirmation
+wsh setconfig app:globalhotkey="Ctrl+Alt+G" app:confirmquit=false
+```
+
+---
+
+### `ai:` — AI Model Settings
+
+These keys configure the default AI provider used by all AI blocks. They can also be overridden per-preset (see [AI Presets](/configuration/ai-presets)).
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `ai:preset` | string | `"ai@global"` | The active AI preset name. |
+| `ai:apitype` | string | — | API protocol to use (e.g., `openai-chat`, `openai-responses`, `google-gemini`). |
+| `ai:baseurl` | string | — | Custom base URL for the AI provider endpoint. |
+| `ai:apitoken` | string | — | API authentication token for the provider. |
+| `ai:name` | string | — | Display name shown in the AI block header. |
+| `ai:model` | string | `"gpt-5-mini"` | Model identifier passed to the provider. |
+| `ai:orgid` | string | — | Organization ID (OpenAI and compatible providers). |
+| `ai:apiversion` | string | — | API version string (Azure and versioned endpoints). |
+| `ai:maxtokens` | number | `4000` | Maximum number of tokens per response. |
+| `ai:timeoutms` | number | `60000` | Request timeout in milliseconds. |
+| `ai:proxyurl` | string | — | HTTP/HTTPS proxy URL for AI requests. |
+| `ai:fontsize` | number | — | Proportional font size for the AI chat view. |
+| `ai:fixedfontsize` | number | — | Fixed (monospace) font size in the AI chat view. |
+
+**Example:**
+
+```bash
+# Point to a local OpenAI-compatible server
+wsh setconfig ai:baseurl="http://localhost:11434/v1" ai:model="llama3.2" ai:apitoken="ollama"
+```
+
+---
+
+### `gulinai:` — GuLiN AI Panel
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `gulinai:showcloudmodes` | boolean | `true` | Show cloud-hosted AI modes in the mode selector. |
+| `gulinai:defaultmode` | string | `"gulinai@balanced"` | The AI mode selected by default when opening the AI panel. |
+
+---
+
+### `term:` — Terminal
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `term:fontsize` | number | — | Terminal font size in points. |
+| `term:fontfamily` | string | — | Font family for terminal text (e.g., `"JetBrains Mono"`). |
+| `term:theme` | string | — | Name of the active terminal color theme. |
+| `term:disablewebgl` | boolean | — | Disable WebGL rendering; falls back to canvas. |
+| `term:localshellpath` | string | — | Path to the shell binary for local terminal sessions. |
+| `term:localshellopts` | array | — | Additional arguments passed to the local shell on startup. |
+| `term:gitbashpath` | string | — | Path to Git Bash on Windows (overrides auto-detection). |
+| `term:scrollback` | integer | — | Number of scrollback lines to retain per terminal. |
+| `term:copyonselect` | boolean | `true` | Copy selected text to the clipboard automatically. |
+| `term:transparency` | number | — | Terminal pane transparency (0.0 – 1.0). |
+| `term:allowbracketedpaste` | boolean | — | Allow bracketed-paste mode (recommended `true`). |
+| `term:cursor` | string | `"block"` | Cursor shape: `block`, `underline`, or `bar`. |
+| `term:cursorblink` | boolean | `false` | Animate the cursor with a blinking effect. |
+| `term:bellsound` | boolean | `false` | Play an audio bell sound on terminal bell. |
+| `term:bellindicator` | boolean | `false` | Show a visual indicator in the tab on terminal bell. |
+| `term:durable` | boolean | `false` | Keep the terminal process alive after the window closes. |
+| `term:shiftenternewline` | boolean | — | Insert a newline on Shift+Enter instead of submitting. |
+| `term:macoptionismeta` | boolean | — | Treat the macOS Option key as the terminal Meta key. |
+
+**Example:**
+
+```bash
+# Switch to a larger font with copy-on-select disabled
+wsh setconfig term:fontsize=15 term:fontfamily="Fira Code" term:copyonselect=false
+```
+
+---
+
+### `editor:` — Code Editor
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `editor:minimapenabled` | boolean | `true` | Show the minimap scrollbar in the code editor. |
+| `editor:stickyscrollenabled` | boolean | — | Keep the current scope header visible while scrolling. |
+| `editor:wordwrap` | boolean | — | Wrap long lines in the editor view. |
+| `editor:fontsize` | number | — | Font size used in the code editor. |
+| `editor:inlinediff` | boolean | — | Show AI-suggested diffs inline in the editor. |
+
+---
+
+### `web:` — Web Browser Block
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `web:defaulturl` | string | `"https://github.com/..."` | The URL loaded when a new web block is opened. |
+| `web:defaultsearch` | string | `"https://www.google.com/search?q={query}"` | Search engine template; `{query}` is replaced with the typed text. |
+| `web:openlinksinternally` | boolean | — | Open clicked links inside a GuLiN web block instead of the system browser. |
+
+---
+
+### `window:` — Window & Layout
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `window:tilegapsize` | integer | `3` | Gap in pixels between tiled blocks. |
+| `window:maxtabcachesize` | integer | `10` | Maximum number of inactive tabs kept in memory. |
+| `window:nativetitlebar` | boolean | `true` | Use the OS native title bar instead of GuLiN's custom one. |
+| `window:magnifiedblockopacity` | number | `0.6` | Opacity of non-focused blocks when one block is magnified. |
+| `window:magnifiedblocksize` | number | `0.9` | Fraction of the window width occupied by a magnified block. |
+| `window:magnifiedblockblurprimarypx` | integer | `10` | Blur radius (px) applied to the magnified block's background. |
+| `window:fullscreenonlaunch` | boolean | `false` | Start GuLiN in full-screen mode. |
+| `window:confirmclose` | boolean | `true` | Confirm before closing a window that contains active blocks. |
+| `window:savelastwindow` | boolean | `true` | Restore the last open window on next launch. |
+| `window:transparent` | boolean | — | Enable window transparency (compositor required). |
+| `window:blur` | boolean | — | Apply a blur effect behind a transparent window. |
+| `window:opacity` | number | — | Overall window opacity (0.0 – 1.0). |
+| `window:reducedmotion` | boolean | — | Reduce or disable UI animations. |
+| `window:zoom` | number | — | Global UI zoom factor. |
+
+---
+
+### `autoupdate:` — Automatic Updates
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `autoupdate:enabled` | boolean | `false` | Enable background update checks. |
+| `autoupdate:installonquit` | boolean | `true` | Install a downloaded update when GuLiN next quits. |
+| `autoupdate:intervalms` | number | `3600000` | How often (in ms) to check for updates. Default is 1 hour. |
+| `autoupdate:channel` | string | — | Update channel to subscribe to (e.g., `stable`, `beta`). |
+
+---
+
+### `conn:` — Connection Defaults
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `conn:askbeforewshinstall` | boolean | `true` | Prompt before installing the `wsh` helper on a remote host. |
+| `conn:wshenabled` | boolean | `true` | Allow GuLiN to install and use `wsh` on remote connections. |
+
+---
+
+### `telemetry:` — Usage Data
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `telemetry:enabled` | boolean | `true` | Send anonymous usage telemetry to help improve GuLiN. |
+
+```bash
+# Opt out of telemetry
+wsh setconfig telemetry:enabled=false
+```

@@ -1,0 +1,89 @@
+---
+title: "Embedded Web Browser: Agentic Browsing Inside GuLiN"
+sidebarTitle: "Web Browser"
+description: "GuLiN's embedded web browser runs as a workspace block and lets the AI agent read pages, click elements, and fill forms — all with explicit user approval for every action."
+---
+
+GuLiN includes a fully functional embedded web browser as a first-class workspace block. Browse the web right alongside your terminals and editor without leaving the application, and let the GuLiN AI agent interact with open pages to summarize articles, follow multi-step tutorials, extract data, or assist with form-based workflows — all under your explicit control.
+
+## Opening the Browser
+
+<Tabs>
+  <Tab title="Widget bar">
+    Click the **Web** icon (globe) in the widget bar at the top of the workspace. A new browser block opens in the current tab and navigates to the configured default URL.
+  </Tab>
+  <Tab title="From the terminal">
+    Use `wsh` to create a web block programmatically from any terminal:
+
+    ```bash
+    wsh createblock --view=web
+    ```
+
+    You can also open a specific URL directly:
+
+    ```bash
+    wsh createblock --view=web --meta='{"url":"https://docs.gulin.dev"}'
+    ```
+  </Tab>
+</Tabs>
+
+## Default URL and Search Engine
+
+When a new browser block opens without a specific URL, it navigates to `web:defaulturl`. Typing a non-URL string into the address bar triggers a search using the `web:defaultsearch` template.
+
+| Setting Key | Type | Default | Description |
+|---|---|---|---|
+| `web:defaulturl` | string | `"https://github.com/jorgeurtubiam-ship-it/Gulin_ia.git"` | URL loaded when a new web block opens |
+| `web:defaultsearch` | string | `"https://www.google.com/search?q={query}"` | Search template; `{query}` is replaced with the URL-encoded search term |
+
+To change the default homepage and search engine, edit `~/.config/gulin/settings.json`:
+
+```json
+{
+  "web:defaulturl": "https://duckduckgo.com",
+  "web:defaultsearch": "https://duckduckgo.com/?q={query}"
+}
+```
+
+You can also right-click the header of any web block and choose **Set Default Homepage** to pin the current page as the global default.
+
+## Agentic Browsing
+
+The GuLiN AI agent can interact with any open browser block through three built-in tools:
+
+<CardGroup cols={2}>
+  <Card title="web_read_page" icon="eye">
+    Reads the full text content of the active page in a browser block. The AI uses this to summarize articles, answer questions about page content, or gather context for a task — without you copying and pasting anything.
+  </Card>
+  <Card title="web_click" icon="arrow-pointer">
+    Simulates a click on a DOM element (button, link, checkbox, etc.). Requires your explicit approval in the AI chat before the click is performed.
+  </Card>
+  <Card title="web_type" icon="keyboard">
+    Types text into a form field or text input on the page. Like `web_click`, this requires explicit user confirmation before any text is entered.
+  </Card>
+  <Card title="capture_screenshot" icon="camera">
+    Captures a screenshot of the current workspace so the AI can see exactly what is visible on screen — useful for debugging visual issues or verifying page state.
+  </Card>
+</CardGroup>
+
+## DOM Interaction and Security
+
+`web_click` and `web_type` allow the AI to interact with web page elements, enabling powerful multi-step workflows like filling search forms, navigating paginated results, or interacting with web-based developer tools.
+
+<Warning>
+  GuLiN will **never** submit a form, click a button, or type into a field without your explicit approval. Every `web_click` and `web_type` action triggers a confirmation prompt in the AI chat panel — you must approve each individual action before it executes. The AI cannot chain DOM actions silently. If you decline any step, the entire workflow stops immediately.
+</Warning>
+
+The user-in-the-loop design means you remain in full control even during complex agentic sequences. The AI describes what it intends to do and waits for your "go ahead" before touching the page.
+
+## Use Cases
+
+- **Summarize articles** — open a long blog post or documentation page and ask the AI to give you the key points without reading it yourself
+- **Follow multi-step tutorials** — the AI reads each step and can help you execute commands or navigate links as you go
+- **Extract data from web pages** — ask the AI to pull structured information (tables, lists, pricing, etc.) from any open page
+- **Assisted form filling** — for repetitive or complex forms, the AI can pre-fill fields with `web_type` after you approve each entry
+- **Research and comparison** — open multiple browser blocks in different tabs, then ask the AI to compare the content across all open pages
+
+<Note>
+  The browser block supports standard navigation controls: back, forward, home, and refresh buttons in the block header. Press **Cmd+L** (macOS) to focus the URL bar, and **Cmd+R** to reload the page. You can also open the page in your system browser via the external link button in the header.
+</Note>

@@ -1,0 +1,206 @@
+---
+title: "Installing GuLiN Terminal on macOS, Linux, and Windows"
+sidebarTitle: "Installation"
+description: "Step-by-step instructions for installing GuLiN Terminal from source on macOS, Linux, and Windows — including all prerequisites, platform-specific dependencies, and packaging commands."
+---
+
+This guide walks you through building and running GuLiN Terminal from source on your machine. You will install the required system tools, clone the repository, initialize the project with a single command, and launch the application in development mode. If you only want a pre-built binary and do not need to modify the source, you can skip ahead to the direct-download note at the bottom of this page.
+
+<Note>
+  Pre-built installers for macOS, Linux, and Windows are available at [gulin.dev/download](https://www.gulin.dev/download). No build toolchain is required when using a pre-built release.
+</Note>
+
+## Prerequisites
+
+Before cloning the repository, make sure the following tools are installed on your system.
+
+### All Platforms
+
+<Steps>
+  <Step title="Install Go 1.22 or later">
+    Download and install Go from the official website:
+
+    ```bash
+    # Verify your Go version after installing
+    go version
+    # go version go1.22.x ...
+    ```
+
+    Download: [go.dev/dl](https://go.dev/dl/)
+  </Step>
+
+  <Step title="Install Node.js 22 LTS">
+    GuLiN's frontend requires Node.js. The recommended version is **Node.js 22 LTS**.
+
+    ```bash
+    # Verify your Node.js version after installing
+    node --version
+    # v22.x.x
+    ```
+
+    Download: [nodejs.org/en/download](https://nodejs.org/en/download)
+  </Step>
+
+  <Step title="Install Task (go-task)">
+    GuLiN uses [Task](https://taskfile.dev) as its build system — a modern, YAML-based alternative to GNU Make. All build, dev, and package commands are run through `task`.
+
+    <Tabs>
+      <Tab title="macOS (Homebrew)">
+        ```bash
+        brew install go-task/tap/go-task
+        ```
+      </Tab>
+      <Tab title="npm (All platforms)">
+        ```bash
+        npm install -g @go-task/cli
+        ```
+      </Tab>
+      <Tab title="Direct download">
+        Visit [taskfile.dev/installation](https://taskfile.dev/installation/) for binary installers and other package managers.
+      </Tab>
+    </Tabs>
+
+    Verify the installation:
+
+    ```bash
+    task --version
+    ```
+  </Step>
+</Steps>
+
+### Platform-Specific Dependencies
+
+<Tabs>
+  <Tab title="macOS">
+    macOS has no additional platform-specific dependencies beyond Go, Node.js, and Task. You are ready to clone and build.
+  </Tab>
+
+  <Tab title="Linux">
+    Linux builds require `zip` and the [Zig](https://ziglang.org/) compiler for statically linking CGO.
+
+    **Debian / Ubuntu:**
+
+    ```bash
+    sudo apt install zip snapd
+    sudo snap install zig --classic --beta
+    ```
+
+    **Fedora / RHEL:**
+
+    ```bash
+    sudo dnf install zip zig
+    ```
+
+    **Arch Linux:**
+
+    ```bash
+    sudo pacman -S zip zig
+    ```
+
+    #### Additional packages for packaging (`task package`)
+
+    If you plan to produce distributable packages on Linux, the following are also required:
+
+    - `fpm` — x64: skip. ARM64: install via [RubyGems](https://rubygems.org/gems/fpm)
+    - `rpm` — Install via your package manager if not on Fedora
+    - `snapd` — [Install snapd](https://snapcraft.io/docs/installing-snapd)
+    - `snapcraft` — `sudo snap install snapcraft --classic`
+    - `lxd` — [LXD installation instructions](https://canonical.com/lxd/install)
+    - `libarchive-tools`, `binutils`, `libopenjp2-tools`, `squashfs-tools` — available from your distro's package manager
+  </Tab>
+
+  <Tab title="Windows">
+    Windows builds require the [Zig](https://ziglang.org/) compiler for statically linking CGO.
+
+    Visit [ziglang.org/learn/getting-started/#managers](https://ziglang.org/learn/getting-started/#managers) for Windows installation instructions.
+
+    After installing Zig, verify it is on your `PATH`:
+
+    ```powershell
+    zig version
+    ```
+  </Tab>
+</Tabs>
+
+### Ollama (Optional — Local AI Models)
+
+<Tip>
+  Install [Ollama](https://ollama.com/) if you want to run AI models entirely on your own hardware — no API keys, no usage fees, and full privacy. GuLiN integrates with Ollama out of the box. Any model available in the Ollama library (Llama 3.2, Phi-3, Mistral, etc.) can be used as GuLiN's AI backend.
+</Tip>
+
+## Build from Source
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/gulindev/gulin.git
+    cd gulin
+    ```
+  </Step>
+
+  <Step title="Initialize the project">
+    Run the `init` task to install all Node.js and Go dependencies in one step. This only needs to be done once after cloning (or whenever you run into dependency issues).
+
+    ```bash
+    task init
+    ```
+
+    This command runs `npm install`, `go mod tidy`, and installs docs dependencies. The first run may take several minutes while Go and npm download their respective libraries.
+  </Step>
+
+  <Step title="Launch in development mode">
+    Start GuLiN via the Vite development server with Hot Module Reloading enabled:
+
+    ```bash
+    task dev
+    ```
+
+    This builds the Go backend, compiles the Electron frontend, and opens the GuLiN Terminal window. Press `Ctrl+C` in the terminal to stop the application.
+  </Step>
+
+  <Step title="(Optional) Run as a standalone build">
+    To build and run the app without the Vite dev server — closer to a production experience — use:
+
+    ```bash
+    task start
+    ```
+  </Step>
+
+  <Step title="(Optional) Package for distribution">
+    To produce a production build and generate distributable installers (`.dmg`, `.exe`, `.deb`, `.snap`, etc.), run:
+
+    <Tabs>
+      <Tab title="macOS / Linux x64 / Windows">
+        ```bash
+        task package
+        ```
+      </Tab>
+      <Tab title="Linux ARM64">
+        ```bash
+        USE_SYSTEM_FPM=1 task package
+        ```
+      </Tab>
+    </Tabs>
+
+    All output artifacts are placed in the `make/` directory.
+  </Step>
+</Steps>
+
+## Debugging
+
+### Frontend
+
+Open Chrome DevTools inside the running GuLiN window:
+
+- **macOS:** `Cmd+Option+I`
+- **Linux / Windows:** `Ctrl+Option+I`
+
+### Backend
+
+Backend logs for the development build are written to:
+
+```
+~/.gulin-dev/gulinapp.log
+```
+
+Both the Electron (Node.js) and Go backends log to this file.

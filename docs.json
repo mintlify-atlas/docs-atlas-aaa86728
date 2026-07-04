@@ -1,72 +1,99 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "GuLiN Terminal",
+  "theme": "luma",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
-  },
-  "favicon": "/favicon.svg",
-  "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "primary": "#6366f1",
+    "light": "#818cf8",
+    "dark": "#4338ca"
   },
   "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
     "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "type": "github",
+      "href": "https://github.com/jorgeurtubiam-ship-it/Gulin_ia"
     }
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/jorgeurtubiam-ship-it/Gulin_ia"
     }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "AI Assistant",
+            "pages": [
+              "ai/overview",
+              "ai/providers",
+              "ai/memory",
+              "ai/agentic-tools"
+            ]
+          },
+          {
+            "group": "Terminal & Workspace",
+            "pages": [
+              "workspace/layout",
+              "workspace/ssh-connections",
+              "workspace/file-editor",
+              "workspace/web-browser"
+            ]
+          },
+          {
+            "group": "Data & Integrations",
+            "pages": [
+              "integrations/database",
+              "integrations/api-manager",
+              "integrations/dremio"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/settings",
+              "configuration/ai-presets",
+              "configuration/keybindings"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Developer Guide",
+        "groups": [
+          {
+            "group": "Building from Source",
+            "pages": [
+              "development/building",
+              "development/architecture"
+            ]
+          },
+          {
+            "group": "GulinApp SDK (Tsunami)",
+            "pages": [
+              "sdk/overview",
+              "sdk/creating-apps",
+              "sdk/vdom-components"
+            ]
+          },
+          {
+            "group": "CLI Reference",
+            "pages": [
+              "cli/wsh",
+              "cli/wsh-commands"
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

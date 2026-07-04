@@ -1,0 +1,259 @@
+---
+title: "Creating GulinApps with the Tsunami SDK"
+sidebarTitle: "Creating Apps"
+description: "Step-by-step guide to scaffolding, building, and running a custom GulinApp micro-app inside the GuLiN workspace using the Tsunami SDK."
+---
+
+This guide walks you through creating a GulinApp from scratch — from enabling the builder UI all the way to seeing your component rendered as a live block inside GuLiN. Each step maps directly to the patterns used by the bundled demo apps in `tsunami/demo/`.
+
+## Prerequisites
+
+You need a working Go installation (1.25.6+) and a clone of the GuLiN repository so the SDK `replace` directive in `go.mod` can resolve locally. The Tsunami build system uses [Task](https://taskfile.dev) for build targets.
+
+## Creating Your First App
+
+<Steps>
+
+<Step title="Enable the GulinApp Builder">
+
+Open your GuLiN `settings.json` (located at `~/.config/gulin/settings.json` on macOS/Linux or `%APPDATA%\gulin\settings.json` on Windows) and set the feature flag:
+
+```json
+{
+  "feature:gulinappbuilder": true
+}
+```
+
+This activates the GulinApp Builder panel in the GuLiN workspace. You can also configure the scaffold and SDK paths under the `tsunami:` namespace if you have non-default locations:
+
+```json
+{
+  "feature:gulinappbuilder": true,
+  "tsunami:scaffoldpath": "/path/to/dist/tsunamiscaffold",
+  "tsunami:sdkreplacepath": "/path/to/gulin/tsunami",
+  "tsunami:gopath": "/usr/local/go/bin/go"
+}
+```
+
+</Step>
+
+<Step title="Build the Tsunami scaffold">
+
+The scaffold provides the pre-built frontend bundle (Tailwind CSS v4, the Tsunami React renderer, and asset pipeline) that every GulinApp embeds. Build it once from the root of the GuLiN repository:
+
+```bash
+task build:tsunamiscaffold
+```
+
+The output lands in `dist/tsunamiscaffold/`. The scaffold path is what `tsunami:scaffoldpath` points to in settings.
+
+<Tip>
+  Run `task tsunami:frontend:dev` while developing to enable live-reload of the Tsunami frontend bundle. Changes to the scaffold's TypeScript and CSS will be picked up automatically without a full rebuild.
+</Tip>
+
+</Step>
+
+<Step title="Create your app directory and go.mod">
+
+Create a new directory for your app and initialize a Go module. Reference the Tsunami SDK via a `replace` directive so Go resolves it from your local checkout:
+
+```go
+// go.mod
+module tsunami/app/myapp
+
+go 1.25.6
+
+require github.com/gulindev/gulin/tsunami v0.0.0
+
+require (
+    github.com/google/uuid v1.6.0 // indirect
+    github.com/outrigdev/goid v0.3.0 // indirect
+)
+
+replace github.com/gulindev/gulin/tsunami => /path/to/gulin/tsunami
+```
+
+</Step>
+
+<Step title="Write your entry point (main.go)">
+
+Every Tsunami app follows the same `main.go` pattern. It embeds the built frontend assets and static files, registers app metadata, and calls `app.RunMain()`:
+
+```go
+package main
+
+import (
+    "embed"
+    "io/fs"
+    "os"
+
+    "github.com/gulindev/gulin/tsunami/app"
+)
+
+//go:embed dist/**
+var distFS embed.FS
+
+//go:embed static/**
+var staticFS embed.FS
+
+func main() {
+    subDistFS, _ := fs.Sub(distFS, "dist")
+    subStaticFS, _ := fs.Sub(staticFS, "static")
+    app.RegisterEmbeds(subDistFS, subStaticFS, nil)
+    app.SetAppMeta(AppMeta)
+
+    if len(os.Args) == 2 && os.Args[1] == "--manifest" {
+        app.PrintAppManifest()
+        os.Exit(0)
+    }
+
+    app.RunMain()
+}
+```
+
+`app.RegisterEmbeds` wires the compiled frontend assets into the HTTP server that Tsunami spins up. `app.RunMain` starts the engine, connects to GuLiN, and begins the render loop.
+
+</Step>
+
+<Step title="Define your app metadata and components">
+
+Create `app.go` alongside `main.go`. Declare an `AppMeta` value, define your component types, and compose the UI using `vdom.H` and `app.DefineComponent`:
+
+```go
+package main
+
+import (
+    "github.com/gulindev/gulin/tsunami/app"
+    "github.com/gulindev/gulin/tsunami/vdom"
+)
+
+// AppMeta is consumed by main.go and shown in the GuLiN block header.
+var AppMeta = app.AppMeta{
+    Title:     "My App",
+    ShortDesc: "A brief description shown in the workspace",
+}
+
+// Prop types are plain Go structs with json tags.
+type CounterProps struct {
+    Label string `json:"label"`
+}
+
+// Components are defined with app.DefineComponent.
+// The render function receives typed props and returns a vdom tree.
+var Counter = app.DefineComponent("Counter", func(props CounterProps) any {
+    countAtom := app.UseLocal(0)
+
+    increment := func() {
+        countAtom.Set(countAtom.Get() + 1)
+    }
+
+    return vdom.H("div", map[string]any{
+        "className": "flex items-center gap-4 p-4",
+    },
+        vdom.H("span", nil, props.Label+": "),
+        vdom.H("span", map[string]any{
+            "className": "text-accent font-bold",
+        }, countAtom.Get()),
+        vdom.H("button", map[string]any{
+            "className": "px-3 py-1 border border-border rounded cursor-pointer",
+            "onClick":   increment,
+        }, "+"),
+    )
+})
+
+// App is the root component. It receives no props (use `any`).
+var App = app.DefineComponent("App", func(_ any) any {
+    return vdom.H("div", map[string]any{
+        "className": "p-6",
+    },
+        vdom.H("h1", map[string]any{
+            "className": "text-2xl font-bold mb-4",
+        }, "My GulinApp"),
+        Counter(CounterProps{Label: "Clicks"}),
+    )
+})
+```
+
+The `AppMeta` variable declared here is referenced in `main.go` via `app.SetAppMeta(AppMeta)`.
+
+</Step>
+
+<Step title="Register an init function (optional)">
+
+If your app needs to set up connections, load configuration, or declare secrets before the first render, register an init function. The generated scaffold wires this automatically via an `init()` call:
+
+```go
+package main
+
+import "github.com/gulindev/gulin/tsunami/app"
+
+func init() {
+    app.RegisterAppInitFn(AppInit)
+}
+
+func AppInit() error {
+    // Perform one-time setup here: open DB connections, load config, etc.
+    // Return a non-nil error to abort startup.
+    return nil
+}
+```
+
+`app.RegisterAppInitFn` accepts exactly one function. Calling it a second time replaces the previously registered function.
+
+</Step>
+
+<Step title="Build and run your app">
+
+Use the Tsunami CLI or the bundled Taskfile targets to build and launch your app. To run the included todo demo as a reference:
+
+```bash
+task tsunami:demo:todo
+```
+
+For your own app, invoke the Tsunami CLI build command directly:
+
+```bash
+tsunami build ./path/to/myapp
+```
+
+Or use the `run` subcommand to build and immediately launch:
+
+```bash
+tsunami run ./path/to/myapp
+```
+
+Once running, GuLiN will surface your app as an interactive block in the workspace.
+
+</Step>
+
+</Steps>
+
+## Minimal App Structure
+
+A minimal Tsunami app contains these files:
+
+```
+myapp/
+├── go.mod          # module declaration + SDK replace directive
+├── go.sum
+├── main.go         # embed + app.RegisterEmbeds + app.RunMain
+├── app.go          # AppMeta + component definitions
+├── static/         # optional static files (config.json, assets, etc.)
+└── style.css       # optional additional CSS (merged with scaffold Tailwind)
+```
+
+The `dist/` directory is generated at build time and should be listed in `.gitignore`.
+
+## Bundled Demo Apps
+
+The repository ships several ready-to-run demos under `tsunami/demo/`. Each demonstrates a different pattern:
+
+| Demo | Task | What it shows |
+|---|---|---|
+| `todo` | `task tsunami:demo:todo` | Multi-component composition, `UseLocal` state, `ForEach` rendering |
+| `cpuchart` | `task tsunami:demo:cpuchart` | `UseTicker` for periodic polling, recharts integration |
+| `tabletest` | `task tsunami:demo:tabletest` | `ui.MakeTableComponent` with sorting and pagination |
+| `pomodoro` | `task tsunami:demo:pomodoro` | Timer lifecycle with `UseGoRoutine` |
+| `modaltest` | `task tsunami:demo:modaltest` | `UseAlertModal` and `UseConfirmModal` hooks |
+
+Run any demo to see a live Tsunami app in your GuLiN workspace before writing your own.

@@ -1,0 +1,142 @@
+---
+title: "Gulin Brain: Long-Term Persistent AI Memory"
+sidebarTitle: "Memory"
+description: "Learn how Gulin Brain uses Auto-RAG and local embeddings to give GuLiN persistent, private, semantic memory across all your projects and sessions."
+---
+
+Gulin Brain is GuLiN's long-term persistent memory system. While the sliding context window keeps active conversations lean, Gulin Brain stores knowledge permanently — your project structures, coding habits, credentials references, and recurring command patterns — and surfaces that knowledge automatically every time you chat. Think of it as the AI's growing understanding of how you specifically work, built up over every interaction.
+
+<Note>
+**Privacy first**: All embeddings are computed locally using the `nomic-embed-text` model via Ollama. Your memories never leave your machine. There are no cloud embedding calls, and the vector index lives entirely on your local filesystem.
+</Note>
+
+## How It Works: Auto-RAG
+
+Every time you send a message to the GuLiN AI, the system performs an automatic Retrieval-Augmented Generation (RAG) lookup before the request reaches the model. This is not a feature you toggle — it runs proactively on every message.
+
+1. Your message is converted to a vector embedding using `nomic-embed-text`.
+2. The embedding is compared semantically against all stored memories.
+3. The most relevant memories are injected into the system prompt context automatically.
+4. The AI responds with full awareness of past knowledge — without you having to reference it explicitly.
+
+This means the AI can recall "our production database is postgres on port 5433" when you ask an unrelated deployment question, simply because the semantic similarity triggered the relevant memory retrieval.
+
+## Memory Storage Location
+
+Memories are stored as plain Markdown files in a local directory:
+
+| Platform | Path |
+|----------|------|
+| macOS / Linux | `~/.config/gulin/gulin/` |
+| Windows | `%APPDATA%\gulin\gulin\` |
+
+Because memories are plain Markdown, you can read, edit, or version-control them directly. Each memory file represents a unit of knowledge — a habit, a project context note, or a technical reference.
+
+## Local Embeddings Setup
+
+To enable Gulin Brain, you need Ollama installed with the `nomic-embed-text` model. This is a one-time setup.
+
+<Steps>
+  <Step title="Install Ollama">
+    Download and install Ollama from [ollama.com](https://ollama.com). It runs as a local server on `http://localhost:11434`.
+
+    ```bash
+    # Verify Ollama is running
+    ollama list
+    ```
+  </Step>
+
+  <Step title="Pull the embedding model">
+    Pull the `nomic-embed-text` model, which GuLiN uses for all memory indexing:
+
+    ```bash
+    ollama pull nomic-embed-text
+    ```
+
+    The model is approximately 274 MB and needs to be downloaded only once.
+  </Step>
+
+  <Step title="Verify the model is available">
+    Confirm the model appears in Ollama's model list:
+
+    ```bash
+    ollama list
+    # NAME                    ID              SIZE    MODIFIED
+    # nomic-embed-text:latest 0a109f422b47    274 MB  ...
+    ```
+  </Step>
+
+  <Step title="Start chatting with memory">
+    Gulin Brain activates automatically once the embedding model is available. Ask GuLiN to remember something:
+
+    ```text
+    Remember that our prod database is postgres on port 5433 on host db.internal.
+    ```
+
+    GuLiN will call `brain_update` to store this as a persistent memory. The next time you ask about the production database in any future session, the relevant memory will be retrieved and injected automatically.
+  </Step>
+</Steps>
+
+## Memory Tools
+
+The AI agent has three dedicated tools for interacting with Gulin Brain. You can also ask the AI to use them explicitly in natural language.
+
+### `brain_update`
+
+Saves a new piece of knowledge, habit, or context to persistent memory.
+
+```text
+# Ask GuLiN to remember something
+Remember that we use pnpm instead of npm for all JavaScript projects.
+```
+
+```text
+# Or reference a specific project
+Remember that the staging environment for Project Atlas is at https://staging.atlas.internal and uses self-signed certs.
+```
+
+### `brain_list`
+
+Lists all memories currently stored in Gulin Brain. Useful for auditing what the AI knows about you.
+
+```text
+What do you currently remember about my projects?
+```
+
+The AI will call `brain_list` and present an organized summary of stored memories.
+
+### `brain_search`
+
+Performs a deep semantic vector search over all stored memories. This is the manual version of the Auto-RAG lookup — useful when you want to explicitly find what GuLiN knows about a specific topic.
+
+```text
+Search your memory for anything related to our Oracle database configuration.
+```
+
+## Sliding Window and Memory Interaction
+
+The active chat context is limited to the **last 4 interactions (8 messages)** to keep token usage low. This is intentional: Gulin Brain handles long-term retention so the sliding window can stay narrow without losing information.
+
+The relationship between the two systems:
+
+- **Sliding window**: What happened recently in this conversation.
+- **Gulin Brain**: What you have taught GuLiN across all conversations and sessions.
+
+Together they give the AI both short-term precision and long-term continuity.
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Project Structure" icon="folder-tree">
+    Store the layout of a complex monorepo so the AI always knows where services, configs, and scripts live — without you explaining it every session.
+  </Card>
+  <Card title="Coding Preferences" icon="code">
+    Remember your style guide, preferred libraries, naming conventions, and architectural patterns so the AI generates code that fits your codebase from day one.
+  </Card>
+  <Card title="Infrastructure References" icon="server">
+    Store hostnames, ports, service names, and environment-specific notes so the AI can reference real infrastructure details without a manual lookup.
+  </Card>
+  <Card title="Recurring Commands" icon="terminal">
+    Capture complex multi-step command sequences and workflows so the AI can reproduce or adapt them in future sessions without starting from scratch.
+  </Card>
+</CardGroup>

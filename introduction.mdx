@@ -1,0 +1,78 @@
+---
+title: "GuLiN Terminal: The AI-Native Terminal for Every Platform"
+sidebarTitle: "Introduction"
+description: "GuLiN Terminal is an open-source, AI-native terminal for macOS, Linux, and Windows — combining multi-provider AI, persistent memory, agentic tools, and a tiled workspace in one app."
+---
+
+GuLiN Terminal (v2.0.3) is an open-source, AI-native terminal application built for engineers who operate at the intersection of AI, infrastructure, and data engineering. It is not just a command-line shell — it is a full cognitive workspace that combines a multi-provider AI assistant, a persistent long-term memory engine (Gulin Brain), agentic tools such as a web browser, database manager, API vault, and SSH controller, and a flexible tiled workspace where every panel is a first-class citizen. Whether you prefer to run models fully offline with Ollama or leverage the power of OpenAI, Claude, Gemini, or DeepSeek, GuLiN integrates all of them under a single interface and lets you switch providers at any time without losing your conversation context.
+
+<Note>
+  GuLiN Terminal runs on **macOS**, **Linux**, and **Windows**. Pre-built installers for all three platforms are available at [gulin.dev/download](https://www.gulin.dev/download). Building from source is also fully supported on all platforms.
+</Note>
+
+## What Makes GuLiN Different
+
+<CardGroup cols={2}>
+  <Card title="Multi-Provider AI" icon="brain">
+    Connect natively to **Ollama** (local/GPU), **DeepSeek**, **Claude**, **Gemini**, and **OpenAI**. Hot-switch between any model mid-conversation without losing chat history or context.
+  </Card>
+  <Card title="Gulin Brain (Persistent Memory)" icon="database">
+    An Auto-RAG memory system that indexes every solution, technical habit, and project context. GuLiN automatically retrieves the most relevant memories and injects them into every AI interaction — no prompting required.
+  </Card>
+  <Card title="Agentic Tool Suite" icon="wrench">
+    A full arsenal of autonomous tools: an **agentic web browser** that can click and fill forms, a **DB Maestro** for Oracle/Postgres/MySQL/MongoDB/SQLite/Dremio, a secure **API Manager** vault, and a full **SSH/CLI infrastructure controller**.
+  </Card>
+  <Card title="Durable SSH Sessions" icon="server">
+    Remote terminal sessions survive network interruptions, connection changes, and GuLiN restarts — reconnecting automatically so long-running tasks are never lost.
+  </Card>
+  <Card title="Tiled Workspace" icon="layout-grid">
+    Arrange terminal blocks, file editors, web browser panels, and AI assistants freely using a drag-and-drop interface. Each block is an independent, resizable pane.
+  </Card>
+  <Card title="Interactive Dashboards" icon="chart-bar">
+    Generate line, bar, area, pie, radar, and composed charts — plus interactive data grids — directly inside the terminal. Export any dashboard as a high-resolution PNG image.
+  </Card>
+  <Card title="AI Command Completion" icon="terminal">
+    Type a natural-language comment starting with `#` (e.g. `# check disk space`) and press **TAB**. GuLiN predicts and inserts the exact shell command — no copy-pasting from another tab.
+  </Card>
+  <Card title="GulinApp SDK" icon="code">
+    Build and deploy custom micro-applications (monitoring dashboards, log viewers, BI tools) inside GuLiN using the **Tsunami framework** (Go + VDom). Extend the workspace without leaving your environment.
+  </Card>
+</CardGroup>
+
+## Core Capabilities
+
+### 🧠 Gulin Brain — Long-Term Memory
+
+Every interaction teaches GuLiN. The brain stores your technical context in Markdown files and uses local vector embeddings (`nomic-embed-text` via Ollama) to retrieve the right context at the right time:
+
+- **`brain_update`** — Save a new piece of knowledge
+- **`brain_list`** — Browse everything GuLiN has learned
+- **`brain_search`** — Deep semantic vector search through all memory
+
+Memory files are stored locally:
+- **macOS:** `~/.config/gulin/gulin/`
+- **Windows:** `%APPDATA%/gulin/gulin/`
+
+### 🛠️ Agentic Tools
+
+| Tool | Description |
+|---|---|
+| **DB Maestro** | Query and visualize Oracle, Postgres, MySQL, MongoDB, SQLite, and Dremio databases |
+| **Agentic Browser** | Autonomously navigate the web, click DOM elements, and fill forms (all with your approval) |
+| **API Manager** | Centralized vault for tokens, secrets, and connections to AWS, Azure, and custom APIs |
+| **SSH Controller** | Manage remote servers, Docker containers, and cloud services — AI diagnoses and repairs proactively |
+
+### 🔄 Rewind & Merge (Agentic Interruption)
+
+If an AI task goes off track, send a corrective message at any point. GuLiN cancels the running task, rewinds the history, and merges your new instruction cleanly — no protocol errors, no context loss.
+
+## Licensing & Project Info
+
+| Field | Detail |
+|---|---|
+| **Version** | 2.0.3 |
+| **License** | Apache-2.0 |
+| **Homepage** | [gulin.dev](https://www.gulin.dev) |
+| **Documentation** | [docs.gulin.dev](https://docs.gulin.dev) |
+| **Discord** | [discord.gg/XfvZ334gwU](https://discord.gg/XfvZ334gwU) |
+| **Repository** | [github.com/gulindev/gulin](https://github.com/gulindev/gulin) |

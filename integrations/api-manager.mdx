@@ -1,0 +1,163 @@
+---
+title: "Manage External API Credentials with GuLiN API Manager"
+sidebarTitle: "API Manager"
+description: "GuLiN's API Manager is a centralized, encrypted vault for external service credentials. The agent injects auth tokens and base URLs dynamically — nothing ever hardcoded."
+---
+
+The **API Manager** is GuLiN's centralized vault for managing external service credentials and endpoints. Instead of pasting tokens or passwords into the chat every time you need to call an external API, you register a service once and GuLiN's agent retrieves the credentials automatically on every subsequent call. Everything is stored in an encrypted local database — nothing leaves your machine.
+
+<Warning>
+  Never paste API tokens, passwords, or secrets directly into the GuLiN chat. Use the API Manager to register them securely. The agent is designed to read credentials from the vault at runtime, so there is no need to expose them in a conversation.
+</Warning>
+
+---
+
+## What It Does
+
+The API Manager stores three pieces of information for each registered service:
+
+- **Base URL** — the root endpoint of the service (e.g. `http://127.0.0.1:9047`).
+- **Auth credentials** — usernames, passwords, and tokens, held in the encrypted local database.
+- **Auth instructions** — a natural-language description that tells the agent exactly how to authenticate: which endpoint to call, what payload to send, and where to find the session token in the response.
+
+At runtime, the agent calls `apimanager_list` to discover available services and their instructions, then follows those instructions to obtain a valid token before making any protected request. Credentials are **injected dynamically** — they are never hard-coded in system prompts or chat history.
+
+---
+
+## Placeholder Syntax
+
+Route templates and request bodies can contain placeholders that the agent substitutes automatically with the stored values:
+
+| Placeholder | Replaced with |
+|-------------|---------------|
+| `{{token}}` | The current session token obtained after login |
+| `{{username}}` | The stored username for this service |
+| `{{password}}` | The stored password for this service |
+
+For example, an auth instruction might read:
+
+```
+POST /apiv2/login with body {"username": "{{username}}", "password": "{{password}}"} to obtain a token.
+Use the returned token as a Bearer header for all subsequent requests.
+```
+
+The agent reads this instruction, substitutes the real credentials from the vault, performs the login call, and caches the token for the rest of the session.
+
+---
+
+## Available Tools
+
+The agent has four tools for interacting with the API Manager:
+
+| Tool | HTTP Methods | Description |
+|------|-------------|-------------|
+| `apimanager_list` | — | Returns all registered services with their base URLs, descriptions, and auth instructions |
+| `apimanager_call` | GET, POST, PUT, DELETE, PATCH | Makes an authenticated HTTP request to a registered service, handling token injection automatically |
+| `apimanager_register` | — | Registers a new service with its name, base URL, auth instructions, and credentials |
+| `apimanager_delete` | — | Removes a service and its stored credentials from the vault |
+
+### `apimanager_list`
+
+Returns the full catalog of registered services. The agent typically calls this first to discover what services are available, what their base URLs are, and how to authenticate with each one.
+
+### `apimanager_call`
+
+Executes an HTTP request against a registered service. The agent specifies the service name, HTTP method, path, and optional request body. The tool resolves the base URL, injects the current auth token, and returns the response.
+
+### `apimanager_register`
+
+Registers a new service entry. The registration payload includes:
+
+```json
+{
+  "name": "my-internal-api",
+  "base_url": "https://api.internal.example.com",
+  "description": "Internal analytics API for the data team",
+  "auth_instructions": "POST /auth/login with body {\"username\": \"{{username}}\", \"password\": \"{{password}}\"} to get a JWT. Pass it as Authorization: Bearer {{token}} on every subsequent request.",
+  "username": "analyst_user",
+  "password": "super-secret-password"
+}
+```
+
+### `apimanager_delete`
+
+Removes a service by name, deleting both the registration metadata and all stored credentials from the local encrypted database.
+
+---
+
+## The Auth Instructions Field
+
+The `auth_instructions` field is the most important part of a service registration. It tells the agent in plain language how to authenticate — which endpoint to call, what payload to send, and what to do with the response.
+
+Examples of well-formed auth instructions:
+
+```
+POST /apiv2/login with JSON body {"username": "{{username}}", "password": "{{password}}"}.
+The response contains a "token" field. Use that value as the Authorization header (no Bearer prefix) for all subsequent requests.
+```
+
+```
+No login needed. Pass the API key stored as {{token}} in the X-API-Key request header on every call.
+```
+
+The agent follows these instructions step-by-step before making any protected request.
+
+---
+
+## Registering and Using a New API Service
+
+<Steps>
+  <Step title="Register the service">
+    Ask the AI to register your new service, providing the base URL, credentials, and auth instructions:
+
+    ```
+    Register a new API called "sales-api" at https://sales.internal.example.com.
+    Auth: POST /v1/auth/token with body {"client_id": "{{username}}", "client_secret": "{{password}}"}.
+    The response has an "access_token" field — use it as Bearer in the Authorization header.
+    Username is "app_client_01", password is "abc123xyz".
+    ```
+
+    The agent calls `apimanager_register` with the structured payload. Credentials are written to the encrypted vault immediately.
+  </Step>
+
+  <Step title="Verify registration">
+    Ask the agent to list registered services to confirm the entry was created:
+
+    ```
+    List all registered API services.
+    ```
+
+    The agent calls `apimanager_list` and returns the service catalog, including `sales-api` and its auth instructions (credentials remain hidden).
+  </Step>
+
+  <Step title="Make a call">
+    Ask the agent to call an endpoint on the registered service:
+
+    ```
+    Fetch the top 10 deals closed this month from the sales-api.
+    ```
+
+    The agent authenticates automatically, then calls `apimanager_call` with the appropriate method and path. Results are returned in the chat.
+  </Step>
+
+  <Step title="Update or remove">
+    To remove a service when it is no longer needed:
+
+    ```
+    Delete the "sales-api" service from the API Manager.
+    ```
+
+    The agent calls `apimanager_delete`, removing the registration and all associated credentials from the vault.
+  </Step>
+</Steps>
+
+---
+
+## Error Handling
+
+GuLiN's agent is trained to handle the two most common API errors gracefully:
+
+- **401 Unauthorized** — The agent re-reads the `auth_instructions` for the service and attempts to re-authenticate before retrying the original request. This handles expired tokens automatically.
+- **404 Not Found** — The agent checks the registered base URL and the path it used. If the path appears incorrect, it reviews the auth instructions and service description for clues before retrying with a corrected path.
+
+If the error persists after a retry, the agent reports the failure and suggests updating the registration with correct details.

@@ -1,0 +1,115 @@
+---
+title: "Integrated File Editor: Monaco-Powered Local & Remote Editing"
+sidebarTitle: "File Editor"
+description: "GuLiN's Monaco-powered file editor brings VS Code-quality editing to local and remote files directly inside your workspace, with AI diff preview and inline editing."
+---
+
+GuLiN includes a Monaco-powered file editor — the same engine that drives Visual Studio Code — available as a first-class workspace block for both local and remote files. Open any file from the file browser, from a terminal command, or via a direct `wsh edit` call, and it loads instantly in a full-featured editor block alongside your terminals and AI panel.
+
+## Opening Files
+
+<Tabs>
+  <Tab title="From the terminal">
+    Use `wsh edit` from any terminal block to open a file in the editor:
+
+    ```bash
+    wsh edit ~/.config/gulin/settings.json
+    ```
+
+    The file opens in a new block in the current tab and is immediately focused. For remote files over SSH, GuLiN streams the content through the WSH agent:
+
+    ```bash
+    wsh edit deploy@myserver:/etc/nginx/nginx.conf
+    ```
+  </Tab>
+  <Tab title="From the file browser">
+    Click any file in a **Files** block (the `preview` view) to open it in the editor. Recognized text formats open in the Monaco editor; images, PDFs, videos, and CSVs are handled by their dedicated previewers.
+  </Tab>
+</Tabs>
+
+<Tip>
+  To open your GuLiN settings file directly without typing the full path, run:
+
+  ```bash
+  wsh editconfig
+  ```
+
+  This is a shortcut that resolves to the correct platform-specific path (`~/.config/gulin/settings.json` on macOS/Linux, `%APPDATA%\gulin\settings.json` on Windows) and opens it in the editor block.
+</Tip>
+
+## Syntax Highlighting
+
+The Monaco editor automatically detects the language from the file extension and applies full syntax highlighting. Supported languages include every major format that VS Code handles — shell scripts, Python, Go, TypeScript, JSON, YAML, Markdown, SQL, and hundreds more.
+
+If the language is not detected automatically, you can override it from the block's settings menu.
+
+## Minimap
+
+The code minimap (the bird's-eye view of the file on the right side of the editor) is enabled by default. Toggle it with the `editor:minimapenabled` setting:
+
+```json
+{
+  "editor:minimapenabled": false
+}
+```
+
+Additional editor settings:
+
+| Setting Key | Type | Default | Description |
+|---|---|---|---|
+| `editor:minimapenabled` | bool | `true` | Show the minimap in the editor gutter |
+| `editor:stickyscrollenabled` | bool | `false` | Pin scope headers (functions, classes) to the top while scrolling |
+| `editor:wordwrap` | bool | `false` | Wrap long lines instead of scrolling horizontally |
+| `editor:fontsize` | number | `12` | Editor font size in points |
+| `editor:inlinediff` | bool | `false` | Show AI-generated changes as an inline diff before applying |
+
+## Remote Editing
+
+The file editor works seamlessly over SSH connections. When you open a remote file, GuLiN:
+
+1. Streams the file content from the remote host through the WSH agent
+2. Opens it in a local Monaco editor block
+3. Writes saves back to the remote host transparently when you save
+
+No separate SCP or SFTP setup is required. The WSH agent handles all file transfer automatically. See [SSH Connections](/workspace/ssh-connections) for setup details.
+
+## File Browser and Preview
+
+The **Files** widget (`view: preview`) is a file browser that doubles as a rich previewer. It opens at your home directory (`~`) by default and supports:
+
+<CardGroup cols={2}>
+  <Card title="Text & Code Files" icon="file-code">
+    Opens in the Monaco editor with full syntax highlighting and editing support.
+  </Card>
+  <Card title="Markdown" icon="file-lines">
+    Rendered as formatted markdown with font size controlled by `markdown:fontsize`.
+  </Card>
+  <Card title="Images & Video" icon="file-image">
+    Displayed inline inside the block — no external viewer needed.
+  </Card>
+  <Card title="PDFs & CSVs" icon="file-csv">
+    PDFs render inline; CSVs display as interactive, scrollable data grids.
+  </Card>
+</CardGroup>
+
+Hidden files are shown or hidden based on the `preview:showhiddenfiles` setting.
+
+## AI-Assisted Edits with Diff Preview
+
+The GuLiN AI panel can read and modify files open in the editor. When the AI proposes a change to a file, GuLiN shows a **diff preview** before applying anything — you can review every addition and deletion before committing.
+
+<Steps>
+  <Step title="Request an edit in the AI panel">
+    Ask the AI to modify the open file. For example: *"Refactor this function to use async/await"* or *"Add error handling to the SSH config block."*
+  </Step>
+  <Step title="Review the diff">
+    GuLiN renders the proposed change as a side-by-side or inline diff inside the editor block. Green lines are additions; red lines are removals.
+  </Step>
+  <Step title="Accept or reject">
+    Click **Accept** to apply the change, or **Reject** to discard it and keep the original file. Rollback is always available — GuLiN does not overwrite files without your explicit confirmation.
+  </Step>
+</Steps>
+
+<Note>
+  The AI can only edit a file that is currently open in a GuLiN editor block. If the file is not open, ask the AI to open it first, or use `wsh edit <path>` before invoking the AI edit.
+</Note>

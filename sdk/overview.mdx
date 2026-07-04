@@ -1,0 +1,110 @@
+---
+title: "GulinApp SDK (Tsunami): Build Terminal Micro-Apps"
+sidebarTitle: "Overview"
+description: "Tsunami is GuLiN's Go + virtual DOM framework for building visually rich terminal micro-apps that run as live blocks inside the GuLiN workspace."
+---
+
+The GulinApp SDK — codenamed **Tsunami** — lets you build custom terminal micro-apps: visually rich, interactive tools that render as blocks directly inside the GuLiN workspace. Apps are written in Go, use a React-like virtual DOM, and communicate with the frontend in real time over WebSocket.
+
+## What Is Tsunami?
+
+Tsunami is a Go-based framework that brings React-style component composition to the server side. You define components as Go functions, manage state with typed atoms, and return `vdom.VDomElem` trees. The engine diffs those trees on each render cycle and pushes only the changed patches to the frontend, where Tsunami's React renderer applies them to the live DOM.
+
+This architecture means your business logic, data fetching, and state management all live in Go — the frontend is a thin, automatically managed rendering surface.
+
+<CardGroup cols={2}>
+  <Card title="Rendering pipeline" icon="server">
+    Go backend produces a `VDomElem` tree → engine diffs against the shadow tree → delta is serialized and pushed to the frontend over WebSocket → React renderer patches the DOM.
+  </Card>
+  <Card title="Component model" icon="code">
+    Components are typed Go functions defined with `app.DefineComponent`. State lives in `Atom[T]` values created by hooks such as `UseLocal`, `UseEffect`, `UseTicker`, and `UseGoRoutine`.
+  </Card>
+</CardGroup>
+
+## Use Cases
+
+GulinApp micro-apps are especially well-suited to tools that need a real-time, visual presence inside your terminal workspace.
+
+<CardGroup cols={2}>
+  <Card title="Database monitors" icon="database">
+    Build live Oracle, Postgres, or MySQL dashboards that poll your connection and surface query results in a formatted, interactive table.
+  </Card>
+  <Card title="Log viewers" icon="scroll">
+    Tail log streams from a remote server or local process and render them with syntax highlighting and inline search.
+  </Card>
+  <Card title="BI dashboards" icon="chart-bar">
+    Embed recharts-powered bar, line, area, or radar charts that refresh on a configurable ticker interval.
+  </Card>
+  <Card title="Infrastructure maps" icon="network-wired">
+    Render node topology diagrams that update automatically as your agent scans the network or reads cluster state.
+  </Card>
+  <Card title="Custom data explorers" icon="table">
+    Use the built-in `ui.MakeTableComponent` to build paginated, sortable, and selectable data grids over any Go slice.
+  </Card>
+  <Card title="Workflow tools" icon="timer">
+    Ship focused productivity utilities — timers, CI status panels, API request explorers — as self-contained GuLiN blocks.
+  </Card>
+</CardGroup>
+
+## Architecture
+
+```
+Your Go app (vdom.H + app.DefineComponent)
+        │
+        ▼
+  Tsunami engine
+  ┌─────────────────────────────────────────┐
+  │  Shadow component tree (ComponentImpl)  │
+  │  Atom store  ·  Hook runner             │
+  │  Reconciler  ·  Diff generator          │
+  └──────────────────┬──────────────────────┘
+                     │ WebSocket (JSON patches)
+                     ▼
+         GuLiN frontend (React renderer)
+```
+
+The engine maintains a persistent **shadow component tree** — analogous to React Fiber — that survives between renders. On each update cycle it reconciles the new `VDomElem` input against the shadow tree, produces a minimal diff, and streams it to the frontend. The frontend applies the diff without a full re-render.
+
+Custom components (Pattern 3) transform into base HTML elements (Pattern 2) through their render functions. Text content is stored as leaf nodes (Pattern 1). Only base elements and text nodes appear in the final serialized output.
+
+## Module
+
+The SDK is published under the module path `github.com/gulindev/gulin/tsunami`. During active development you reference it via a `replace` directive in your app's `go.mod`:
+
+```go
+module tsunami/app/myapp
+
+go 1.25.6
+
+require github.com/gulindev/gulin/tsunami v0.0.0
+
+replace github.com/gulindev/gulin/tsunami => /path/to/gulin/tsunami
+```
+
+<Note>
+  The workspace `replace` directive is the standard pattern used by every bundled demo (see `tsunami/demo/*/go.mod`). When the SDK is released to a public registry the directive will be dropped and a pinned version tag used instead.
+</Note>
+
+## Enabling the GulinApp Builder
+
+The visual GulinApp Builder UI is gated behind a feature flag. Set the following key in your GuLiN `settings.json` to activate it:
+
+```json
+{
+  "feature:gulinappbuilder": true
+}
+```
+
+The corresponding settings field is `FeatureGulinAppBuilder bool` (key `feature:gulinappbuilder`) in `SettingsType`. Additional Tsunami-specific settings — scaffold path, SDK replace path, Go binary path — are also configurable under the `tsunami:` namespace.
+
+## Development Status
+
+Tsunami is under **active development**. The rendering engine, atom system, hook library, and table component are already functional and used by the bundled demos. The visual builder, template library, and public module release are on the roadmap.
+
+To run the included todo demo app:
+
+```bash
+task tsunami:demo:todo
+```
+
+This builds and launches the `tsunami/demo/todo` app so you can see a working Tsunami app rendered as a GuLiN block before writing your own.

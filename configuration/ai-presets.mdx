@@ -1,0 +1,175 @@
+---
+title: "AI Presets: Named AI Configurations in GuLiN"
+sidebarTitle: "AI Presets"
+description: "Learn how to create, customize, and select AI presets in GuLiN to quickly switch between different providers, models, and token limits."
+---
+
+AI presets let you define named bundles of `ai:*` settings that can be selected from the model dropdown in any AI block. Instead of re-entering an API key, base URL, or model name every time you switch providers, you save each configuration as a preset and switch between them with a single click.
+
+## What Is a Preset?
+
+A preset is a named entry in `presets.json` whose key starts with `ai@`. Each preset carries any combination of `ai:*` configuration fields along with optional display metadata. When you select a preset from the model dropdown, its fields are merged over the global `ai:*` defaults defined in `settings.json`.
+
+The special field `"ai:*": true` in a preset acts as a **reset flag** — it clears all inherited `ai:*` values before applying the preset's own fields, ensuring a clean slate instead of an unintended merge.
+
+<Tip>
+  Name your presets with the `ai@` prefix followed by a short, descriptive slug — for example `ai@ollama-local`, `ai@gpt4o`, or `ai@deepseek`. The text after `ai@` is what users see in the dropdown when `display:name` is not set.
+</Tip>
+
+---
+
+## Built-In Presets
+
+GuLiN ships two presets in `defaults/presets/ai.json`:
+
+<CardGroup cols={2}>
+  <Card title="ai@global" icon="globe">
+    The **Global default** preset (order `-1`). It uses `"ai:*": true` to inherit whatever `ai:*` values are configured in your `settings.json`. Selecting this preset effectively applies your top-level AI settings with no overrides.
+  </Card>
+  <Card title="ai@gulin" icon="sparkles">
+    The **Gulin Proxy – gpt-5-mini** preset (order `0`). Uses the GuLiN-hosted proxy with `gpt-5-mini`, 4 000 max tokens, and a 60-second timeout. No API key is required for this preset.
+  </Card>
+</CardGroup>
+
+The raw definitions from `defaults/presets/ai.json`:
+
+```json
+{
+    "ai@global": {
+        "display:name": "Global default",
+        "display:order": -1,
+        "ai:*": true
+    },
+    "ai@gulin": {
+        "display:name": "Gulin Proxy - gpt-5-mini",
+        "display:order": 0,
+        "ai:*": true,
+        "ai:apitype": "",
+        "ai:baseurl": "",
+        "ai:apitoken": "",
+        "ai:name": "",
+        "ai:orgid": "",
+        "ai:model": "gpt-5-mini",
+        "ai:maxtokens": 4000,
+        "ai:timeoutms": 60000
+    }
+}
+```
+
+---
+
+## Preset Fields
+
+Every preset is a JSON object whose keys are drawn from the following set:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `display:name` | string | Human-readable label shown in the model dropdown. |
+| `display:order` | number | Sort position in the dropdown (lower numbers appear first). |
+| `ai:*` | boolean | When `true`, clears all inherited `ai:*` values before applying this preset. |
+| `ai:apitype` | string | API protocol: `openai-chat`, `openai-responses`, or `google-gemini`. |
+| `ai:baseurl` | string | Base URL for the provider endpoint. |
+| `ai:apitoken` | string | Authentication token for the provider. |
+| `ai:model` | string | Model identifier passed in each request. |
+| `ai:name` | string | Override the display name inside the AI block header. |
+| `ai:orgid` | string | Organization ID (OpenAI and compatible). |
+| `ai:apiversion` | string | API version string (Azure and versioned endpoints). |
+| `ai:maxtokens` | number | Maximum tokens per response. |
+| `ai:timeoutms` | number | Request timeout in milliseconds. |
+| `ai:proxyurl` | string | HTTP/HTTPS proxy for AI requests. |
+| `ai:fontsize` | number | Proportional font size for the AI chat view. |
+| `ai:fixedfontsize` | number | Fixed (monospace) font size in the AI chat view. |
+
+---
+
+## Creating a Custom Preset
+
+Custom presets live in `presets.json` inside your GuLiN config directory. Open it with:
+
+```bash
+wsh editconfig presets.json
+```
+
+<Steps>
+  <Step title="Open presets.json">
+    Run `wsh editconfig presets.json` in any GuLiN terminal. If the file does not exist yet, GuLiN creates an empty one for you.
+  </Step>
+  <Step title="Add your preset object">
+    Add a top-level key using the `ai@` prefix. Include `"ai:*": true` to start from a clean slate, then set only the fields you need.
+  </Step>
+  <Step title="Save and select">
+    Save the file. Your preset appears immediately in the model dropdown inside any AI block — no restart required.
+  </Step>
+</Steps>
+
+### Example: Local Ollama Preset
+
+```json
+{
+    "ai@ollama-local": {
+        "display:name": "Ollama – Llama 3.2 (local)",
+        "display:order": 1,
+        "ai:*": true,
+        "ai:apitype": "openai-chat",
+        "ai:baseurl": "http://localhost:11434/v1",
+        "ai:apitoken": "ollama",
+        "ai:model": "llama3.2",
+        "ai:maxtokens": 4000,
+        "ai:timeoutms": 120000
+    }
+}
+```
+
+### Example: OpenAI GPT-4o Preset
+
+```json
+{
+    "ai@gpt4o": {
+        "display:name": "OpenAI – GPT-4o",
+        "display:order": 2,
+        "ai:*": true,
+        "ai:apitype": "openai-chat",
+        "ai:baseurl": "https://api.openai.com/v1",
+        "ai:apitoken": "$ENV:OPENAI_API_KEY",
+        "ai:model": "gpt-4o",
+        "ai:maxtokens": 8000,
+        "ai:timeoutms": 60000
+    }
+}
+```
+
+<Note>
+  GuLiN supports `$ENV:VARIABLE_NAME` syntax in config values. Use it to read API keys from environment variables instead of storing them in plain text. You can also supply a fallback with `$ENV:VAR:fallback-value`.
+</Note>
+
+---
+
+## Setting the Default Preset
+
+The `gulinai:defaultmode` setting in `settings.json` controls which AI mode is active when a new AI block opens. It defaults to `gulinai@balanced`.
+
+To change the default to your custom preset:
+
+```bash
+wsh setconfig gulinai:defaultmode="ai@ollama-local"
+```
+
+Alternatively, set `ai:preset` to point to your preferred preset as the global default:
+
+```bash
+wsh setconfig ai:preset="ai@gpt4o"
+```
+
+---
+
+## Feature Flag: GulinApp Builder
+
+Setting `feature:gulinappbuilder` to `true` in `settings.json` enables the experimental GulinApp builder UI, which provides a visual interface for scaffolding AI-powered terminal applications.
+
+```bash
+wsh setconfig feature:gulinappbuilder=true
+```
+
+<Warning>
+  The GulinApp builder is an experimental feature. Its API surface and behavior may change between releases.
+</Warning>

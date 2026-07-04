@@ -1,0 +1,127 @@
+{
+  "projectType": "saas",
+  "projectName": "GuLiN Terminal",
+  "projectDescription": "An AI-native terminal for macOS, Linux, and Windows that integrates multi-provider AI assistance, persistent SSH sessions, agentic tools (web browser, database manager, API manager), and a customizable widget workspace.",
+  "theme": "luma",
+  "primaryColor": "#6366f1",
+  "lightColor": "#818cf8",
+  "darkColor": "#4338ca",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "AI Assistant",
+            "pages": [
+              "ai/overview",
+              "ai/providers",
+              "ai/memory",
+              "ai/agentic-tools"
+            ]
+          },
+          {
+            "group": "Terminal & Workspace",
+            "pages": [
+              "workspace/layout",
+              "workspace/ssh-connections",
+              "workspace/file-editor",
+              "workspace/web-browser"
+            ]
+          },
+          {
+            "group": "Data & Integrations",
+            "pages": [
+              "integrations/database",
+              "integrations/api-manager",
+              "integrations/dremio"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/settings",
+              "configuration/ai-presets",
+              "configuration/keybindings"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Developer Guide",
+        "groups": [
+          {
+            "group": "Building from Source",
+            "pages": [
+              "development/building",
+              "development/architecture"
+            ]
+          },
+          {
+            "group": "GulinApp SDK (Tsunami)",
+            "pages": [
+              "sdk/overview",
+              "sdk/creating-apps",
+              "sdk/vdom-components"
+            ]
+          },
+          {
+            "group": "CLI Reference",
+            "pages": [
+              "cli/wsh",
+              "cli/wsh-commands"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Multi-provider AI support (OpenAI, Claude, Gemini, DeepSeek, Ollama, LM Studio)",
+    "Persistent long-term memory system (Gulin Brain) with Auto-RAG and local embeddings",
+    "Agentic web browser with DOM interaction and user-in-the-loop safety",
+    "Native database connections (Oracle, PostgreSQL, MySQL, MongoDB, SQLite, Dremio)",
+    "API Manager for secure credential and endpoint management",
+    "Drag-and-drop tiled workspace with resizable blocks",
+    "Durable SSH sessions that survive network interruptions",
+    "Interactive dashboards with recharts (bar, line, area, pie, radar, composed, grid)",
+    "AI command completion via # + TAB in the terminal prompt",
+    "Rewind & Merge agentic interruption for mid-task course correction",
+    "GulinApp SDK (Tsunami framework) for building custom terminal micro-apps",
+    "Real-time debug logs widget with per-category filtering",
+    "Context-optimized sliding window memory for token efficiency",
+    "Hot-switching between AI models without losing chat history"
+  ],
+  "publicApiSurface": [
+    "wsh ai — send a message to the GuLiN AI from the terminal",
+    "wsh run — execute a command in a block",
+    "wsh ssh — open an SSH connection",
+    "wsh setmeta — set block metadata key-value pairs",
+    "wsh getmeta — get block metadata",
+    "wsh setconfig — update settings key-value pairs",
+    "wsh editconfig — open the settings file in the editor",
+    "wsh file / wsh readfile / wsh writefile — file operations",
+    "wsh getvar / wsh setvar — manage block-scoped variables",
+    "wsh createblock / wsh deleteblock / wsh focusblock — manage workspace blocks",
+    "wsh secret — manage secrets in the secret store",
+    "wsh notify — send a desktop notification",
+    "wsh setbg — set the window background",
+    "apimanager_list — list registered external API services",
+    "apimanager_call — make HTTP calls to registered services",
+    "apimanager_register — register a new API endpoint",
+    "apimanager_delete — remove an API endpoint",
+    "brain_update — save new knowledge to Gulin Brain",
+    "brain_list — list all Gulin Brain memory entries",
+    "brain_search — semantic vector search over Gulin Brain",
+    "StreamGulinAiCommand — Go RPC interface method to stream AI responses",
+    "WshRpcInterface — Go interface defining all backend RPC commands"
+  ]
+}

@@ -1,0 +1,95 @@
+---
+title: "GuLiN AI Panel: Your Agentic Terminal Intelligence"
+sidebarTitle: "Overview"
+description: "Explore GuLiN's integrated AI panel — context-aware, agentic intelligence built into your terminal with memory, command completion, and real-time debugging."
+---
+
+The GuLiN AI panel is not a standalone chatbot bolted onto the side of your workflow. It is a fully integrated intelligence layer that reads your open terminals, files, and web views in real time, giving the AI the same context you have. Unlike external chat tools, GuLiN's AI knows what is happening on your screen — the last commands you ran, the file you have open, and the web page you are reading — so every response is grounded in your actual environment.
+
+<CardGroup cols={2}>
+  <Card title="Context Awareness" icon="plug">
+    The AI reads your active terminal output (last 20 lines), open files, and browser tabs automatically — no copy-pasting required.
+  </Card>
+  <Card title="AI Command Completion" icon="keyboard">
+    Type `#` followed by a natural language description in the terminal prompt and press **TAB** to have the AI write the exact shell command for you.
+  </Card>
+  <Card title="Rewind & Merge" icon="rotate-left">
+    Interrupt the agent mid-task and send a corrective message. GuLiN cancels instantly, rewinds the history, and merges your new instruction without breaking the session.
+  </Card>
+  <Card title="Sliding Window Memory" icon="memory">
+    Only the last 4 interactions (8 messages) are sent to the AI provider, keeping token usage low and responses fast even during long sessions.
+  </Card>
+</CardGroup>
+
+## Context Awareness
+
+The AI panel stays in sync with everything visible in your GuLiN workspace. When you ask a question, GuLiN automatically injects relevant context so the AI can give precise, actionable answers.
+
+- **Terminal context**: The last 20 lines of scrollback from any focused terminal are sent along with your message. You no longer have to paste error output into the chat.
+- **File context**: Files open in the editor widget are readable by the AI, letting it review code, configuration, or logs directly.
+- **Web context**: Any web page open inside GuLiN can be read by the `web_read_page` tool, so the AI can summarize documentation or follow tutorials step by step without leaving the terminal.
+
+Expert system prompts are tuned to avoid repeating terminal output that is already visible on screen, keeping chat responses concise and noise-free.
+
+## AI Command Completion
+
+GuLiN embeds AI prediction directly in your shell prompt. Instead of switching to the chat panel and copying a command back, you can stay in the terminal and use the `#` + **TAB** shortcut.
+
+1. Type a `#` comment describing what you want to do, for example:
+
+```bash
+# check disk space
+```
+
+2. Press **TAB** and GuLiN predicts and writes the appropriate command in-place:
+
+```bash
+df -h
+```
+
+The cursor lands on a ready-to-run command. Press **Enter** to execute or edit it first.
+
+## Rewind & Merge
+
+GuLiN gives you total control over a running agent. When you realize the AI is heading in the wrong direction — mid-execution — you do not have to wait for it to finish or restart the entire chat.
+
+<Note>
+**Use case**: You asked GuLiN to analyze disk usage across the entire filesystem (`/`), but you only wanted to inspect `/tmp`. While the agent is running `du` commands, type a new message — "Actually, only check /tmp" — and send it. GuLiN atomically cancels the current task, cancels any pending terminal or web operations tied to that context, rewinds the chat history to a clean state, and merges your corrective instruction. The agent restarts from the right direction immediately, with no `400 Bad Request` errors and no orphaned processes.
+</Note>
+
+The cancellation is atomic: all low-level tools (terminal commands, web reads, RAG searches) bound to the interrupted session are terminated instantly, freeing resources without manual cleanup.
+
+## Sliding Window Memory
+
+Long conversations can push token costs up exponentially. GuLiN v2.0.3 introduced a sliding context window that limits what the AI receives to the **last 4 interactions (8 messages total)** of the current session.
+
+This means:
+- Response speed stays consistent even after hours of conversation.
+- Per-message cost does not grow unbounded.
+- Long-term knowledge is handled by the persistent [Gulin Brain memory system](/ai/memory) rather than raw chat history.
+
+## AI History
+
+Every command the AI executes through `term_run_command` is automatically appended to a log file:
+
+```text
+~/.gulin/ai_history.sh
+```
+
+This log is a plain shell script that you can review, replay, or share. It is ideal for auditing automated operations or extracting complex multi-step commands the agent composed on your behalf.
+
+## Debug Logs Widget
+
+The Debug Logs widget provides a real-time observability panel for everything happening under the hood. Each log entry is tagged with a category so you can filter down to exactly the subsystem you care about.
+
+| Category | Color  | What it captures                                         |
+|----------|--------|----------------------------------------------------------|
+| `[TERM]` | Green  | Commands executed, exit codes, syntax errors             |
+| `[API]`  | Blue   | External API calls, parameters sent, server responses    |
+| `[FILE]` | Orange | File reads, writes, edits, and deletions                 |
+| `[DB]`   | Purple | SQL queries dispatched and database connection results   |
+| `[IA]`   | Purple | Prompt construction details, context trim events, token usage |
+
+Use the filter pills at the top of the widget to focus on a single category. For example, activate only `[IA]` when debugging why the agent appears to be "forgetting" earlier context — the trim logs will show you exactly which messages were dropped.
+
+The widget also supports autoscroll, one-click log line copying (useful for extracting `curl` commands the API Manager built), and a clear button to reset the view.

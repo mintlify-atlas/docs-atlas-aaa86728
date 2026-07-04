@@ -1,47 +1,149 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Quickstart: Run Your First AI Command in GuLiN Terminal"
+sidebarTitle: "Quickstart"
+description: "Get GuLiN Terminal running in under 10 minutes — launch the app, connect an AI provider, and execute your first AI-assisted shell command using the # + TAB shortcut."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+This guide takes you from zero to your first AI-powered command in GuLiN Terminal. By the end you will have the application running locally, an AI provider configured (either a free local model via Ollama or a cloud provider of your choice), and hands-on experience with GuLiN's core features: AI command completion, the AI chat panel, and hot model switching.
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Install GuLiN Terminal">
+    Follow the [Installation guide](/installation) to build GuLiN from source, or download a pre-built installer for your platform from [gulin.dev/download](https://www.gulin.dev/download).
+
+    Once you have cloned the repository and run `task init`, you are ready to launch.
+  </Step>
+
+  <Step title="Launch the application">
+    Start GuLiN in development mode from the root of the repository:
+
+    <CodeGroup>
+      ```bash macOS
+      task dev
+      ```
+
+      ```bash Linux
+      task dev
+      ```
+
+      ```powershell Windows
+      task dev
+      ```
+    </CodeGroup>
+
+    The GuLiN Terminal window will open automatically. The Go backend, Electron shell, and Vite dev server all start together. Hot Module Reloading is active, so any frontend changes you make are reflected immediately.
+  </Step>
+
+  <Step title="Choose an AI provider">
+    Click the **model dropdown** in the top-left corner of the GuLiN window. You will see all available providers. Choose the one that fits your setup:
+
+    <Tabs>
+      <Tab title="Local — Ollama (free, private)">
+        Ollama runs large language models entirely on your own machine — no API key and no data leaving your device.
+
+        1. Make sure Ollama is installed and running: [ollama.com](https://ollama.com/)
+        2. Pull a model. Llama 3.2 is a great starting point:
+
+           ```bash
+           ollama run llama3.2
+           ```
+
+        3. In the GuLiN model dropdown, select **Local (Ollama)** or **Custom** and confirm the endpoint is set to:
+
+           ```
+           http://localhost:11434
+           ```
+
+        <Tip>
+          GuLiN also uses Ollama's `nomic-embed-text` model for its Gulin Brain memory embeddings. Run `ollama pull nomic-embed-text` to enable fully local, private long-term memory.
+        </Tip>
+      </Tab>
+
+      <Tab title="Cloud — OpenAI / Claude / Gemini / DeepSeek">
+        If you prefer a cloud provider for maximum reasoning capability:
+
+        1. In the model dropdown, select your provider: **OpenAI**, **Claude** (Anthropic), **Gemini** (Google), or **DeepSeek**.
+        2. GuLiN will prompt you for your API key. Paste it in — it is stored locally and never sent to any GuLiN server.
+        3. Select your desired model variant from the dropdown (e.g. `gpt-4o`, `claude-opus-4-5`, `gemini-2.0-flash`, `deepseek-v3`).
+
+        You are now connected. GuLiN's full agentic toolset is available with any cloud provider.
+      </Tab>
+    </Tabs>
+
+    <Tip>
+      You can **hot-switch models at any time** — including mid-conversation. GuLiN shares its chat history and Gulin Brain memory across all providers, so switching from Ollama to GPT-4o (or back) never resets your context or loses your work.
+    </Tip>
+  </Step>
+
+  <Step title="Open a terminal block and try AI command completion">
+    GuLiN's tiled workspace starts with a terminal block open by default. Click inside the terminal to focus it.
+
+    Type a natural-language comment starting with `#` and press **TAB**:
 
     ```bash
-    npm install your-package
+    # check disk space
+    ```
+
+    After pressing TAB, GuLiN's AI will predict and insert the appropriate shell command — for example `df -h` — directly into your prompt. Press **Enter** to run it.
+
+    <Note>
+      The `#` + **TAB** shortcut works on any open terminal block. The AI reads the current working directory, recent output, and your Gulin Brain memory to predict the most relevant command for your context. No chat window interaction required.
+    </Note>
+
+    Try a few more examples to get a feel for the feature:
+
+    ```bash
+    # list all running docker containers
+    ```
+
+    ```bash
+    # find files larger than 100MB in the current directory
+    ```
+
+    ```bash
+    # show memory usage by process
     ```
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
+  <Step title="Ask GuLiN AI for help in the AI panel">
+    Click the **AI panel** (the chat icon on the left sidebar, or open a new AI block from the workspace menu). This is GuLiN's full agentic assistant — it can read your terminal output, manage files, query databases, browse the web, and execute commands with your approval.
+
+    Try asking it something that requires multi-step reasoning:
+
     ```
+    Analyze the disk usage in my home directory and tell me the top 5 largest directories.
+    ```
+
+    GuLiN will:
+    1. Use the `term_run_command` tool to run `du -sh ~/*` (or equivalent) in your terminal
+    2. Read and summarize the output
+    3. Present a ranked summary in the chat
+
+    You will see each tool call appear in the chat as a collapsible step — you can inspect exactly what the AI did and why.
+
+    <Note>
+      All agentic actions that touch your system (running commands, clicking web elements, writing files) require your explicit approval in the chat. GuLiN never executes anything autonomously without confirmation.
+    </Note>
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
 
-    ```bash
-    your-cli start
-    ```
+  <Step title="Explore the tiled workspace">
+    GuLiN's workspace supports multiple block types that you can arrange freely:
+
+    - **Terminal block** — standard shell with AI command completion
+    - **AI panel** — the full agentic assistant
+    - **File editor** — syntax-highlighted editor for local and remote files
+    - **Web browser** — agentic browser the AI can navigate on your behalf
+    - **Dashboard** — charts and data grids rendered inline
+
+    Drag any block header to reposition it. Use the `+` button to open additional blocks. All panels share the same GuLiN Brain context, so the AI assistant is always aware of what is happening across your entire workspace.
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## What's Next
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+Now that GuLiN is running, explore some of its more powerful features:
+
+- **Gulin Brain** — Review and extend the AI's long-term memory using `brain_list` and `brain_update` in the AI panel
+- **DB Maestro** — Connect to a database (Oracle, Postgres, MySQL, MongoDB, SQLite, or Dremio) from the workspace menu and let the AI write and run queries for you
+- **SSH Sessions** — Open an SSH block and connect to a remote server; the session will survive network interruptions and reconnect automatically
+- **Interactive Dashboards** — Ask the AI to visualize any data as a bar, line, area, pie, or radar chart directly in the workspace
+- **GulinApp SDK** — Build custom terminal micro-applications using the Tsunami framework (Go + VDom)

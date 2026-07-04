@@ -1,0 +1,153 @@
+---
+title: "GuLiN Terminal Architecture: Electron, Go Backend, and React"
+sidebarTitle: "Architecture"
+description: "An overview of GuLiN's layered architecture: the Go backend server, wsh CLI, Electron main process, React frontend, and the RPC layer that connects them."
+---
+
+GuLiN Terminal is an Electron application built around a Go backend server and a React/TypeScript frontend. The Electron main process spawns the Go server on startup and bridges OS-level concerns to the frontend. A lightweight CLI binary called `wsh` extends the same RPC protocol over stdin/stdout to remote machines, giving every view in the UI — local or remote — a consistent programming model.
+
+## Components
+
+<CardGroup cols={2}>
+  <Card title="gulinsrv" icon="server">
+    The core Go backend server. Handles AI streaming, file operations, database connections (SQLite, PostgreSQL, MySQL, MSSQL, Oracle, MongoDB), SSH sessions, and WebSocket RPC. Built into `dist/bin/gulinsrv.*` for each supported platform.
+  </Card>
+  <Card title="wsh" icon="terminal">
+    A lightweight Go CLI binary compiled for every supported target (macOS, Linux, Windows — amd64, arm64, mips). Installed on local and remote machines; exposes the same RPC interface over stdin/stdout so `gulinsrv` can control remote sessions.
+  </Card>
+  <Card title="Electron Main Process (emain/)" icon="bolt">
+    The Node.js bridge between the operating system and the app. Manages windows, menus, the app lifecycle, auto-updates, and IPC. Spawns `gulinsrv` on launch via `emain/emain-gulinsrv.ts`.
+  </Card>
+  <Card title="Frontend (frontend/)" icon="browser">
+    React 19 + TypeScript + Vite + Tailwind CSS v4. Renders the entire UI inside the Chromium renderer process. All terminal views, AI chat panels, file previews, and settings screens live here.
+  </Card>
+  <Card title="Tsunami SDK (tsunami/)" icon="code">
+    An embedded Go framework for building custom in-app widgets using a virtual DOM. Compiles to a WebAssembly scaffold so Go developers can write interactive UI panels without touching the React codebase.
+  </Card>
+  <Card title="RPC Layer (pkg/wshrpc/)" icon="arrows-left-right">
+    `WshRpcInterface` defines all commands shared between Go and TypeScript. Running `task generate` produces the TypeScript bindings automatically, keeping both sides of the API in sync.
+  </Card>
+</CardGroup>
+
+## Architecture Diagram
+
+The following diagram shows how the major layers communicate at runtime:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                       Electron Process                       │
+│                                                             │
+│  ┌──────────────────────┐    ┌───────────────────────────┐  │
+│  │  emain/ (Node.js)    │    │  Renderer (Chromium)      │  │
+│  │  - Window management │    │  - React 19 + TypeScript  │  │
+│  │  - App lifecycle     │◄──►│  - Tailwind CSS v4        │  │
+│  │  - Auto-update       │IPC │  - Vite-bundled frontend  │  │
+│  │  - Spawns gulinsrv   │    │  - Jotai state            │  │
+│  └──────────┬───────────┘    └──────────────┬────────────┘  │
+│             │ spawn                         │ WebSocket RPC  │
+└─────────────┼───────────────────────────────┼───────────────┘
+              │                               │
+              ▼                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   gulinsrv (Go binary)                       │
+│                                                             │
+│  pkg/wshrpc/     ← WshRpcInterface + generated TS bindings  │
+│  pkg/gulinai/    ← OpenAI / Anthropic / Google / Perplexity │
+│  pkg/wconfig/    ← SettingsType, file-watched live reload   │
+│  pkg/eventbus/   ← Internal pub/sub for block state         │
+│  pkg/filestore/  ← Content-addressed local storage          │
+│  pkg/jobcontroller/ + pkg/jobmanager/ ← Background tasks    │
+│  Block/View system ← term, gulinai, preview, web, sysinfo   │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ stdin/stdout RPC
+                               ▼
+              ┌────────────────────────────┐
+              │  wsh (remote CLI binary)   │
+              │  Installed on SSH targets  │
+              │  Mirrors WshRpcInterface   │
+              └────────────────────────────┘
+```
+
+## RPC Layer
+
+All communication between the TypeScript frontend and the Go backend flows through a single interface defined in `pkg/wshrpc/wshrpctypes.go`:
+
+```go
+// WshRpcInterface defines every command available over the WebSocket RPC channel.
+// Running `task generate` produces matching TypeScript bindings automatically.
+type WshRpcInterface interface { ... }
+```
+
+Running `task generate` invokes two code generators:
+
+- `cmd/generatets/main-generatets.go` — produces TypeScript client stubs
+- `cmd/generatego/main-generatego.go` — produces Go server boilerplate
+
+This means the TypeScript bindings in `frontend/` are never written by hand — they are always derived from the authoritative Go interface.
+
+## AI Backends
+
+The `pkg/gulinai/` package contains one adapter file per AI provider:
+
+| File | Provider |
+|------|----------|
+| `openaibackend.go` | OpenAI (GPT models) |
+| `anthropicbackend.go` | Anthropic (Claude models) |
+| `googlebackend.go` | Google (Gemini models) |
+| `perplexitybackend.go` | Perplexity |
+| `cloudbackend.go` | GuLiN cloud proxy |
+
+Each adapter implements the same streaming interface so the frontend `gulinai` block view can swap providers without code changes.
+
+## Configuration System
+
+Settings are defined as a typed Go struct in `pkg/wconfig/settingsconfig.go`. The field tags map JSON keys directly to Go fields:
+
+```go
+// SettingsType is the root configuration structure.
+// JSON keys match the keys users write in settings.json.
+type SettingsType struct { ... }
+```
+
+A file watcher (`pkg/wconfig/filewatcher.go`) monitors the settings file on disk and publishes change events through the event bus so every component that depends on a setting receives updates without a restart.
+
+Default values ship inside the binary via `pkg/wconfig/defaultconfig/settings.json`.
+
+## Block and View System
+
+The entire GuLiN UI is composed of **blocks** — self-contained UI panels, each associated with a `view` type. The view type determines which React component and which backend service handles the panel. Built-in view types include:
+
+| View type | Description |
+|-----------|-------------|
+| `term` | Full terminal emulator (xterm.js + WebGL renderer) |
+| `gulinai` | AI chat with streaming responses |
+| `preview` | File and Markdown preview |
+| `web` | Embedded web browser |
+| `sysinfo` | System resource graphs |
+
+The list of default widget shortcuts (which appear in the widget picker) is defined in `pkg/wconfig/defaultconfig/widgets.json`.
+
+## Event Bus
+
+`pkg/eventbus/eventbus.go` provides an in-process publish/subscribe system. Components subscribe to named events (e.g. block state changes, settings updates, connection status) and receive typed payloads. This decouples the backend services from each other and from the WebSocket layer that forwards events to the frontend.
+
+## File Store
+
+`pkg/filestore/blockstore.go` implements content-addressed local storage for large block output — terminal scrollback, file previews, AI conversation history. Each entry is keyed by a block ID and a file path within that block. Cached writes are batched to disk asynchronously, with a memory cache in front of the SQLite-backed store.
+
+## Job System
+
+Long-running background tasks (SSH connection probing, remote file indexing, auto-update checks) are managed by two packages:
+
+- **`pkg/jobcontroller/`** — manages the lifecycle of a single job (start, cancel, status)
+- **`pkg/jobmanager/`** — owns the global job registry and schedules jobs with concurrency limits
+
+Jobs communicate results back to the frontend through the event bus.
+
+## Tsunami SDK
+
+The `tsunami/` directory contains a self-contained Go module (`github.com/gulindev/gulin/tsunami`) that provides a virtual DOM engine for writing in-app widgets entirely in Go. At build time, `task build:tsunamiscaffold` compiles the Tsunami frontend scaffold and copies it into `dist/tsunamiscaffold/`. The scaffold is then bundled as an Electron extra resource so widgets can be served locally without a network round-trip.
+
+<Note>
+  Tsunami is designed for power users who want to embed custom interactive dashboards (charts, forms, data tables) inside GuLiN without writing JavaScript. See the `tsunami/demo/` directory for working examples.
+</Note>

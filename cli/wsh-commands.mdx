@@ -1,0 +1,1144 @@
+---
+title: "wsh Commands — Complete Subcommand Reference"
+sidebarTitle: "Commands"
+description: "Complete reference for every wsh subcommand: syntax, flags, defaults, and usage examples sourced directly from the GuLiN source code."
+---
+
+This page is a complete reference for all `wsh` subcommands. Each section covers the exact command syntax, every flag with its type and default value, and at least one practical usage example. All information is extracted directly from the GuLiN source code — nothing is invented or approximated.
+
+<Note>
+  All `wsh` commands require the `GULIN_JWT` environment variable to be set, which GuLiN injects automatically into every terminal block. Running `wsh` outside of a GuLiN-managed terminal will produce an error.
+</Note>
+
+---
+
+## AI & Agent Commands
+
+<AccordionGroup>
+
+<Accordion title="wsh ai — Append content to the GuLiN AI sidebar">
+
+Send files, stdin, or a text message to the GuLiN AI sidebar prompt. By default the prompt is appended but **not** auto-submitted — use `-s` to submit immediately.
+
+**Syntax**
+
+```bash
+wsh ai [options] [files...]
+```
+
+Use `-` as a filename to read from stdin.
+
+**Flags**
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--message` | `-m` | `string` | `""` | Optional message or question to append after any attached files |
+| `--submit` | `-s` | `bool` | `false` | Submit the prompt immediately after appending |
+| `--new` | `-n` | `bool` | `false` | Create a new AI chat block instead of appending to the existing one |
+
+**File limits**
+
+- Maximum **15 files** per invocation.
+- Text / general files: **200 KB** max.
+- PDF files: **5 MB** max.
+- Image files (jpg, png, gif, webp): **7 MB** max.
+- Binary files (non-PDF, non-image) are rejected.
+
+**Examples**
+
+```bash
+# Pipe a git diff to AI and ask a question in the UI
+git diff | wsh ai -
+
+# Attach a source file; ask your question interactively in the sidebar
+wsh ai main.go
+
+# Attach multiple Go files with a message and auto-submit
+wsh ai *.go -m "find bugs" -s
+
+# Read from stdin, add a message, and auto-submit
+wsh ai -s - -m "review this log" < app.log
+
+# Open a fresh AI chat with a file attached
+wsh ai -n config.json
+```
+
+</Accordion>
+
+<Accordion title="wsh gulin — Talk directly to GuLiN Agent">
+
+Direct integration with the GuLiN Agent. Accepts piped input, file paths, or a plain-text message. Unlike `wsh ai`, this command **always auto-submits** the assembled prompt to the GuLiN AI sidebar.
+
+**Syntax**
+
+```bash
+wsh gulin [message] [files...]
+```
+
+- If the first argument resolves to an existing file on disk, all arguments are treated as file paths.
+- Otherwise, the first argument is treated as the message and any remaining arguments are file paths.
+
+**Flags**
+
+This command has no additional flags beyond the global `--block / -b`.
+
+**Examples**
+
+```bash
+# Send a plain message and auto-submit
+wsh gulin "explain what this codebase does"
+
+# Pipe command output into the agent
+cat Makefile | wsh gulin
+
+# Attach a file (first arg is a file path)
+wsh gulin README.md
+
+# Pipe output and pass a message
+git log --oneline -20 | wsh gulin "summarize these commits"
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+---
+
+## SSH & Connection Commands
+
+<AccordionGroup>
+
+<Accordion title="wsh ssh — Connect a terminal block to a remote host">
+
+Connect the current terminal block (or a new one) to a remote SSH host. GuLiN automatically establishes the connection and updates the block's metadata to target the remote host.
+
+**Syntax**
+
+```bash
+wsh ssh [flags] <user@hostname>
+```
+
+**Flags**
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--identityfile` | `-i` | `string array` | `[]` | Path to an SSH identity file for public-key authentication. Can be repeated for multiple keys |
+| `--new` | `-n` | `bool` | `false` | Create a new terminal block with this SSH connection instead of reusing the current block |
+
+**Examples**
+
+```bash
+# Switch the current terminal block to connect via SSH
+wsh ssh user@example.com
+
+# Open a new terminal block connected to a remote host
+wsh ssh -n user@example.com
+
+# Connect using a specific identity file
+wsh ssh -i ~/.ssh/id_deploy user@prod.example.com
+
+# Connect using multiple identity files
+wsh ssh -i ~/.ssh/key1 -i ~/.ssh/key2 user@bastion.example.com
+```
+
+</Accordion>
+
+<Accordion title="wsh conn — Manage SSH and WSL connections">
+
+Subcommands for managing all GuLiN SSH and WSL connections — view status, connect, disconnect, and manage `wsh` installations on remotes.
+
+**Syntax**
+
+```bash
+wsh conn <subcommand> [CONNECTION]
+```
+
+**Subcommands**
+
+| Subcommand | Args | Description |
+|------------|------|-------------|
+| `status` | — | Show status of all active SSH and WSL connections |
+| `connect CONNECTION` | required | Connect to a named connection |
+| `disconnect CONNECTION` | required | Disconnect a single named connection |
+| `disconnectall` | — | Disconnect all active connections |
+| `reinstall [CONNECTION]` | optional | Reinstall `wsh` on the specified connection (defaults to the current connection) |
+| `ensure CONNECTION` | required | Ensure `wsh` is installed on the specified connection |
+
+**Examples**
+
+```bash
+# List all connections and their status
+wsh conn status
+
+# Connect to a host defined in your SSH config
+wsh conn connect user@example.com
+
+# Disconnect a specific connection
+wsh conn disconnect user@example.com
+
+# Disconnect every active connection
+wsh conn disconnectall
+
+# Reinstall wsh on a remote host
+wsh conn reinstall user@example.com
+
+# Ensure wsh is present on a remote (install if missing)
+wsh conn ensure user@example.com
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+---
+
+## Block Management Commands
+
+<AccordionGroup>
+
+<Accordion title="wsh createblock — Create a new block">
+
+Create a new block in the current tab with the specified view type and optional metadata key-value pairs.
+
+**Syntax**
+
+```bash
+wsh createblock <viewname> [key=value ...]
+```
+
+**Flags**
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--magnified` | `-m` | `bool` | `false` | Create the block in magnified (full-screen overlay) mode |
+
+**Examples**
+
+```bash
+# Create a new terminal block
+wsh createblock term
+
+# Create a web browser block pointing to a URL
+wsh createblock web url=https://example.com
+
+# Create a file preview block
+wsh createblock preview file=/home/user/README.md
+
+# Create a magnified AI chat block
+wsh createblock gulinai -m
+```
+
+</Accordion>
+
+<Accordion title="wsh deleteblock — Delete a block">
+
+Delete a block by its ID. Uses the global `--block / -b` flag to resolve the target block (defaults to the current block when called without `-b`).
+
+**Syntax**
+
+```bash
+wsh deleteblock [-b <blockid|blocknum|this>]
+```
+
+**Flags**
+
+This command uses only the global `--block / -b` flag. No additional flags.
+
+**Examples**
+
+```bash
+# Delete the current block
+wsh deleteblock
+
+# Delete a specific block by ID
+wsh deleteblock -b 3a9f1c2d-0011-4b5e-8f6a-abcdef012345
+
+# Delete block number 2 in the current tab
+wsh deleteblock -b 2
+```
+
+</Accordion>
+
+<Accordion title="wsh focusblock — Focus a block">
+
+Move keyboard focus to the specified block within the current tab.
+
+**Syntax**
+
+```bash
+wsh focusblock [-b <blockid|blocknum|this>]
+```
+
+**Flags**
+
+This command uses only the global `--block / -b` flag. No additional flags.
+
+**Examples**
+
+```bash
+# Focus the current block (useful in scripts to return focus)
+wsh focusblock
+
+# Focus a specific block by ID
+wsh focusblock -b 3a9f1c2d-0011-4b5e-8f6a-abcdef012345
+
+# Focus block number 1 in the current tab
+wsh focusblock -b 1
+```
+
+</Accordion>
+
+<Accordion title="wsh blocks list — List blocks across workspaces">
+
+List all blocks visible to GuLiN, with optional filtering by workspace, window, tab, or view type. The `blocks` command has a `list` subcommand (also aliased as `ls` and `get`).
+
+**Syntax**
+
+```bash
+wsh blocks list [flags]
+```
+
+**Aliases:** `ls`, `get`
+
+**Flags**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--window` | `string` | `""` | Restrict output to blocks in a specific window ID |
+| `--workspace` | `string` | `""` | Restrict output to blocks in a specific workspace ID |
+| `--tab` | `string` | `""` | Restrict output to blocks in a specific tab ID |
+| `--view` | `string` | `""` | Restrict output to a specific view type. Supported values and aliases: `term` / `terminal` / `shell` / `console`, `web` / `browser` / `url`, `preview` / `edit`, `sysinfo` / `sys` / `system`, `gulinai` / `ai` / `assistant` |
+| `--json` | `bool` | `false` | Output results as JSON |
+| `--timeout` | `int` | `5000` | Timeout in milliseconds for RPC calls |
+
+<Note>
+  `--workspace` and `--window` are mutually exclusive. Specify only one at a time.
+</Note>
+
+**Examples**
+
+```bash
+# List all blocks in all workspaces
+wsh blocks list
+
+# List only terminal blocks
+wsh blocks list --view=term
+
+# List blocks in a specific window
+wsh blocks list --window=dbca23b5-f89b-4780-a0fe-452f5bc7d900
+
+# Output as JSON for use in scripts
+wsh blocks list --json
+
+# Filter by tab and view
+wsh blocks list --tab=a0459921-cc1a-48cc-ae7b-5f4821e1c9e1 --view=web
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+---
+
+## Metadata & Configuration Commands
+
+<AccordionGroup>
+
+<Accordion title="wsh setmeta — Set metadata on a block or entity">
+
+Set one or more metadata key-value pairs on a block (or other GuLiN entity). Values support booleans, numbers, strings, JSON arrays, and JSON objects. Use `null` or an empty value to clear a key.
+
+**Syntax**
+
+```bash
+wsh setmeta [-b <blockid|blocknum|this>] [--json file.json] key=value ...
+```
+
+**Flags**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--json` | `string` | `""` | Path to a JSON file containing metadata to apply. Use `-` to read from stdin. Command-line `key=value` pairs take precedence over JSON file values |
+
+**Value parsing rules**
+
+- Empty string or `null` → JSON `null` (clears the key)
+- `true` / `false` → boolean
+- Strings starting with `[`, `{`, or `"` → parsed as JSON
+- Integers and floats are parsed automatically
+- Everything else is treated as a plain string
+- Keys containing `/` are treated as nested paths: `a/b=1` sets `{"a": {"b": 1}}`
+
+**Examples**
+
+```bash
+# Set the title of the current block
+wsh setmeta title="My Terminal"
+
+# Set a numeric value
+wsh setmeta term:fontsize=14
+
+# Clear a key by setting it to null
+wsh setmeta title=null
+
+# Apply metadata from a JSON file
+wsh setmeta --json meta.json
+
+# Pipe JSON metadata via stdin
+cat meta.json | wsh setmeta --json -
+
+# Target a specific block
+wsh setmeta -b 2 title="Block Two"
+```
+
+</Accordion>
+
+<Accordion title="wsh getmeta — Get metadata from a block or entity">
+
+Read metadata from a block or other GuLiN entity. Without arguments, returns all keys as a JSON object. With key arguments, returns only those keys. Supports glob-style prefix patterns like `name:*`.
+
+**Syntax**
+
+```bash
+wsh getmeta [-b <blockid|blocknum|this>] [key ...]
+```
+
+**Flags**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--verbose` / `-v` | `bool` | `false` | Print the resolved object reference to stderr before the output |
+| `--raw` | `bool` | `false` | Output a single string value without JSON quotes |
+| `--clear-prefix` | `bool` | `false` | When using prefix patterns (`key:*`), include the special clearing sentinel key in output |
+
+**Examples**
+
+```bash
+# Get all metadata for the current block
+wsh getmeta
+
+# Get a single key
+wsh getmeta title
+
+# Get multiple specific keys
+wsh getmeta title term:fontsize
+
+# Get all keys under the "bg:" namespace
+wsh getmeta "bg:*"
+
+# Get a raw string value (no JSON quotes)
+wsh getmeta --raw title
+
+# Target a different block
+wsh getmeta -b 3 view
+```
+
+</Accordion>
+
+<Accordion title="wsh setconfig — Update global GuLiN settings">
+
+Set one or more global GuLiN configuration settings using the same `key=value` syntax as `setmeta`. These settings are persisted to `settings.json`.
+
+**Syntax**
+
+```bash
+wsh setconfig key=value [key=value ...]
+```
+
+**Flags**
+
+This command has no flags beyond the global `--block / -b`.
+
+**Examples**
+
+```bash
+# Disable telemetry
+wsh setconfig telemetry:enabled=false
+
+# Set a custom AI model
+wsh setconfig ai:model=gpt-4o
+
+# Set multiple config keys at once
+wsh setconfig term:fontsize=14 term:fontfamily=JetBrainsMono
+
+# Enable wsh on SSH connections
+wsh setconfig conn:wshenabled=true
+```
+
+</Accordion>
+
+<Accordion title="wsh editconfig — Open a GuLiN configuration file in the editor">
+
+Open a GuLiN configuration file in the built-in editor block. Defaults to `settings.json` when no file name is given.
+
+**Syntax**
+
+```bash
+wsh editconfig [configfile]
+```
+
+Supported config files include: `settings.json`, `presets.json`, `widgets.json`.
+
+**Flags**
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--magnified` | `-m` | `bool` | `false` | Open the config editor in magnified mode |
+
+**Examples**
+
+```bash
+# Open settings.json (default)
+wsh editconfig
+
+# Open a specific config file
+wsh editconfig presets.json
+
+# Open widgets.json in magnified mode
+wsh editconfig widgets.json -m
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+---
+
+## Variable Commands
+
+<AccordionGroup>
+
+<Accordion title="wsh setvar — Set block variables">
+
+Set one or more persistent variables for a block. Variables are stored in a per-block var file. Use `--remove` to delete variables instead of setting them.
+
+**Syntax**
+
+```bash
+wsh setvar [flags] KEY=VALUE ...
+```
+
+When `--remove` is active, arguments are treated as keys only (no `=VALUE` needed).
+
+**Flags**
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--varfile` | — | `string` | `"var"` | Name of the var file to write to |
+| `--local` / `-l` | `-l` | `bool` | `false` | Set variables local to the current block (instead of the global client scope) |
+| `--remove` / `-r` | `-r` | `bool` | `false` | Remove the specified variable(s) instead of setting them |
+
+**Examples**
+
+```bash
+# Set two variables in the global (client) scope
+wsh setvar FOO=bar BAZ=123
+
+# Set a variable local to the current block
+wsh setvar -l MY_VAR=hello
+
+# Remove variables
+wsh setvar -r FOO BAZ
+
+# Target a specific block
+wsh setvar -b 2 -l SESSION_ID=abc123
+```
+
+</Accordion>
+
+<Accordion title="wsh getvar — Get block variables">
+
+Read a variable (or all variables) from a block's var file.
+
+**Syntax**
+
+```bash
+wsh getvar [flags] [key]
+```
+
+**Flags**
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--varfile` | — | `string` | `"var"` | Name of the var file to read from |
+| `--all` | — | `bool` | `false` | Print all variables as `KEY=VALUE` lines |
+| `--null` / `-0` | `-0` | `bool` | `false` | Separate entries with null bytes instead of newlines (useful for `xargs -0`) |
+| `--local` / `-l` | `-l` | `bool` | `false` | Read variables local to the current block |
+| `--newline` / `-n` | `-n` | `bool` | `false` | Always print a newline after the value |
+| `--no-newline` / `-N` | `-N` | `bool` | `false` | Never print a newline after the value |
+
+**Exit codes:** exits `1` if the requested key does not exist.
+
+**Examples**
+
+```bash
+# Get a single variable
+wsh getvar FOO
+
+# Print all variables
+wsh getvar --all
+
+# Print all variables, null-terminated (for scripting)
+wsh getvar --all -0
+
+# Read a variable local to the current block
+wsh getvar -l MY_VAR
+
+# Use the value in a script
+export MYVAL=$(wsh getvar FOO)
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+---
+
+## Editor & File Commands
+
+<AccordionGroup>
+
+<Accordion title="wsh editor — Open a file in GuLiN's built-in editor">
+
+Open a file in GuLiN's built-in preview/editor block. The command **blocks** until the editor block is closed, making it usable as `$EDITOR` in scripts and Git workflows.
+
+**Syntax**
+
+```bash
+wsh editor [flags] <file>
+```
+
+The file must already exist. Relative paths are resolved to absolute paths before opening.
+
+**Flags**
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--magnified` | `-m` | `bool` | `false` | Open the editor in magnified mode |
+
+**Examples**
+
+```bash
+# Open a file in the built-in editor
+wsh editor README.md
+
+# Open in magnified mode
+wsh editor -m src/main.go
+
+# Use as $EDITOR for git commit messages
+GIT_EDITOR="wsh editor" git commit
+```
+
+</Accordion>
+
+<Accordion title="wsh file — Manage files across local and remote systems">
+
+The `file` command is a subcommand group for managing files on local and remote systems using GuLiN's URI scheme. All subcommands share a common URI format.
+
+**URI Format**
+
+```
+[profile]:[uri-scheme]://[connection]/[path]
+```
+
+The `wsh://` scheme accesses files on remote SSH hosts via the WSH helper. Shorthands:
+
+- A bare path like `./file.txt` refers to the current remote.
+- `//user@host/path` refers to a path on a specific remote.
+- `/~/path` refers to the home directory on your local computer.
+
+**Persistent flag (applies to all `file` subcommands)**
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--timeout` | `-t` | `int64` | `15000` | Timeout in milliseconds for long operations |
+
+---
+
+**Subcommands**
+
+<AccordionGroup>
+
+<Accordion title="wsh file ls — List files">
+
+```bash
+wsh file ls [flags] [uri]
+```
+
+**Aliases:** `list`
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--long` | `-l` | `bool` | `false` | Use long listing format (name, size, mtime) |
+| `--one` | `-1` | `bool` | `false` | List one file per line |
+| `--files` | `-f` | `bool` | `false` | List files only (no directories) |
+
+```bash
+# List current directory
+wsh file ls
+
+# Long listing of a remote path
+wsh file ls -l wsh://user@ec2/home/user/
+
+# One-per-line output for scripting
+wsh file ls -1 wsh://user@ec2/data/
+```
+
+</Accordion>
+
+<Accordion title="wsh file cat — Display file contents">
+
+```bash
+wsh file cat [uri]
+```
+
+Maximum file size: **10 MB**.
+
+```bash
+wsh file cat wsh://user@ec2/home/user/config.txt
+wsh file cat ./localfile.txt
+```
+
+</Accordion>
+
+<Accordion title="wsh file write — Write stdin to a file">
+
+```bash
+wsh file write [uri]
+```
+
+Reads from stdin and writes to the specified file. Maximum: **10 MB**.
+
+```bash
+echo "hello world" | wsh file write ./greeting.txt
+cat local.txt | wsh file write wsh://user@ec2/remote.txt
+```
+
+</Accordion>
+
+<Accordion title="wsh file append — Append stdin to a file">
+
+```bash
+wsh file append [uri]
+```
+
+Appends stdin to an existing file. Maximum combined file size: **10 MB**.
+
+```bash
+echo "new entry" | wsh file append ./log.txt
+tail -f app.log | wsh file append wsh://user@ec2/logs/app.log
+```
+
+</Accordion>
+
+<Accordion title="wsh file rm — Remove a file">
+
+```bash
+wsh file rm [flags] [uri]
+```
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--recursive` | `-r` | `bool` | `false` | Remove directories recursively |
+
+```bash
+wsh file rm wsh://user@ec2/home/user/old.txt
+wsh file rm -r wsh://user@ec2/home/user/old-dir/
+```
+
+</Accordion>
+
+<Accordion title="wsh file cp — Copy files between systems">
+
+```bash
+wsh file cp [flags] <source-uri> <destination-uri>
+```
+
+**Aliases:** `copy`
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--merge` | `-m` | `bool` | `false` | Merge source directory into destination directory |
+| `--force` | `-f` | `bool` | `false` | Overwrite existing files at the destination |
+
+```bash
+# Copy from remote to local
+wsh file cp wsh://user@ec2/home/user/config.txt ./local-config.txt
+
+# Copy from local to remote
+wsh file cp ./local-config.txt wsh://user@ec2/home/user/config.txt
+```
+
+</Accordion>
+
+<Accordion title="wsh file mv — Move files between systems">
+
+```bash
+wsh file mv [flags] <source-uri> <destination-uri>
+```
+
+**Aliases:** `move`
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--force` | `-f` | `bool` | `false` | Overwrite existing files at the destination |
+
+The source file is deleted after a successful move.
+
+```bash
+wsh file mv ./old-name.txt ./new-name.txt
+wsh file mv wsh://user@ec2/tmp/data.csv ./data.csv
+```
+
+</Accordion>
+
+<Accordion title="wsh file info — Show file information">
+
+```bash
+wsh file info [uri]
+```
+
+Prints name, mode, modification time, size, and any embedded metadata.
+
+```bash
+wsh file info wsh://user@ec2/home/user/config.txt
+wsh file info ./data.json
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+</Accordion>
+
+</AccordionGroup>
+
+---
+
+## Terminal Commands
+
+<AccordionGroup>
+
+<Accordion title="wsh term — Open a new terminal block">
+
+Create a new terminal (shell) block in the current tab, optionally setting its working directory.
+
+**Syntax**
+
+```bash
+wsh term [flags] [directory]
+```
+
+If no directory is provided, the new terminal opens in the current working directory.
+
+**Flags**
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--magnified` | `-m` | `bool` | `false` | Open the new terminal in magnified mode |
+
+**Examples**
+
+```bash
+# Open a terminal in the current directory
+wsh term
+
+# Open a terminal in a specific directory
+wsh term ~/projects/myapp
+
+# Open a magnified terminal in a directory
+wsh term -m /var/log
+```
+
+</Accordion>
+
+<Accordion title="wsh run — Run a command in a new terminal block">
+
+Execute a command in a freshly created terminal block. The command is run once and the block stays open by default unless exit flags are used.
+
+**Syntax**
+
+```bash
+wsh run [flags] -- <command> [args...]
+```
+
+Use `--` to separate `wsh run` flags from the command being run. Alternatively, use `-c` to pass a shell command string.
+
+**Flags**
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--magnified` | `-m` | `bool` | `false` | Open the block in magnified mode |
+| `--command` | `-c` | `string` | `""` | Run this command string via the shell (alternative to `-- cmd`) |
+| `--exit` | `-x` | `bool` | `false` | Close the block when the command exits successfully; keep it open on error |
+| `--forceexit` | `-X` | `bool` | `false` | Close the block when the command exits, regardless of exit status |
+| `--delay` | — | `int` | `2000` | Milliseconds to wait before closing the block when `--exit` is active |
+| `--paused` | `-p` | `bool` | `false` | Create the block but do not start the command immediately |
+| `--cwd` | — | `string` | `""` (current dir) | Working directory for the command |
+| `--append` | `-a` | `bool` | `false` | Append output on restart instead of clearing the terminal |
+
+**Examples**
+
+```bash
+# Run a command in a new block
+wsh run -- make build
+
+# Run with a shell string
+wsh run -c "echo hello && sleep 2"
+
+# Run and close block on success
+wsh run -x -- npm test
+
+# Run and always close block after 3 s
+wsh run -X --delay 3000 -- ./deploy.sh
+
+# Run in a specific directory
+wsh run --cwd ~/projects/api -- go run .
+
+# Create a paused block (command won't start until manually triggered)
+wsh run -p -- python train.py
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+---
+
+## Notification & UI Commands
+
+<AccordionGroup>
+
+<Accordion title="wsh notify — Send a desktop notification">
+
+Trigger a native OS desktop notification from any terminal block, including remote SSH sessions.
+
+**Syntax**
+
+```bash
+wsh notify [flags] <message>
+```
+
+**Flags**
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--title` | `-t` | `string` | `"Wsh Notify"` | Title of the notification |
+| `--silent` | `-s` | `bool` | `false` | Suppress the notification sound |
+
+**Examples**
+
+```bash
+# Basic notification
+wsh notify "Build complete"
+
+# Custom title
+wsh notify -t "CI/CD" "Deployment finished"
+
+# Silent notification
+wsh notify -s "Log rotation done"
+
+# Notify on completion of a long command
+make build && wsh notify -t "Make" "Build succeeded" || wsh notify -t "Make" "Build FAILED"
+```
+
+</Accordion>
+
+<Accordion title="wsh setbg — Set the tab background image or color">
+
+Set a background image or solid color for the current tab. Supports image files, hex color codes, and CSS named colors. Use `--clear` to remove an existing background.
+
+**Syntax**
+
+```bash
+wsh setbg [flags] (image-path | "#rrggbb" | color-name)
+```
+
+<Warning>
+  Hex color strings must be quoted (e.g., `"#ff0000"`) to prevent the shell from interpreting `#` as a comment character.
+</Warning>
+
+**Flags**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--opacity` | `float64` | `0.5` | Background opacity from `0.0` (transparent) to `1.0` (opaque) |
+| `--tile` | `bool` | `false` | Tile the background image (mutually exclusive with `--center`) |
+| `--center` | `bool` | `false` | Center the image without scaling (mutually exclusive with `--tile`) |
+| `--size` | `string` | `"auto"` | Size for centered images — accepts px values, percentages, or `auto` |
+| `--clear` | `bool` | `false` | Remove the current background |
+| `--print` | `bool` | `false` | Print the resulting metadata JSON without applying it |
+
+**Supported image types:** JPEG, PNG, GIF, WebP, SVG.
+
+**Examples**
+
+```bash
+# Set a hex background color (quotes required)
+wsh setbg "#1e1e2e"
+
+# Set a CSS named color
+wsh setbg forestgreen
+
+# Set a background image (cover, centered)
+wsh setbg ~/wallpapers/mountains.png
+
+# Set a tiled background
+wsh setbg --tile ~/wallpapers/pattern.png
+
+# Set a centered logo at 200px
+wsh setbg --center --size 200px ~/logo.svg
+
+# Change opacity only
+wsh setbg --opacity 0.3
+
+# Clear the background
+wsh setbg --clear
+
+# Preview metadata without applying
+wsh setbg --print "#ff0000"
+```
+
+</Accordion>
+
+<Accordion title="wsh launch — Launch a configured widget">
+
+Launch a widget defined in GuLiN's `widgets.json` (or the built-in default widgets) by its widget ID.
+
+**Syntax**
+
+```bash
+wsh launch [flags] <widget-id>
+```
+
+**Flags**
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--magnify` | `-m` | `bool` | `false` | Open the widget in magnified mode (overrides the widget's own magnified setting) |
+
+**Examples**
+
+```bash
+# Launch a widget by its configured ID
+wsh launch my-widget
+
+# Launch in magnified mode
+wsh launch -m my-dashboard
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+---
+
+## Secret Management
+
+<AccordionGroup>
+
+<Accordion title="wsh secret — Manage application secrets">
+
+Manage secrets stored in GuLiN's secure secret store. Secrets are identified by names that must start with a letter and contain only letters, numbers, and underscores (`[A-Za-z][A-Za-z0-9_]*`).
+
+**Syntax**
+
+```bash
+wsh secret <subcommand> [args]
+```
+
+**Subcommands**
+
+| Subcommand | Args | Description |
+|------------|------|-------------|
+| `get <name>` | required | Retrieve and print a secret value |
+| `set <name>=<value>` | required | Store or update a secret |
+| `list` | — | Print the names of all stored secrets |
+| `delete <name>` | required | Delete a secret |
+| `ui` | — | Open the secrets management UI in a new block |
+
+**Flags for `wsh secret ui`**
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--magnified` | `-m` | `bool` | `false` | Open the secrets UI in magnified mode |
+
+<Warning>
+  `wsh secret set` requires a system-level secret manager. On Linux, it checks the storage backend and will refuse to set secrets if only the `basic_text` or `unknown` backend is available.
+</Warning>
+
+**Examples**
+
+```bash
+# Store a secret
+wsh secret set API_KEY=sk-abc123
+
+# Retrieve a secret
+wsh secret get API_KEY
+
+# List all secret names
+wsh secret list
+
+# Delete a secret
+wsh secret delete API_KEY
+
+# Open the secrets management UI
+wsh secret ui
+
+# Open UI in magnified mode
+wsh secret ui -m
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+---
+
+## GuLiN Path & Info Commands
+
+<AccordionGroup>
+
+<Accordion title="wsh gulinpath — Print GuLiN directory paths">
+
+Print the absolute path to GuLiN's config, data, or log directory. Optionally open the path in a new block or in the system file manager.
+
+**Syntax**
+
+```bash
+wsh gulinpath [flags] {config|data|log}
+```
+
+**Flags**
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--open` | `-o` | `bool` | `false` | Open the path in a new GuLiN block |
+| `--open-external` | `-O` | `bool` | `false` | Open the path in the default external application (e.g., Finder, Nautilus) |
+| `--tail` | `-t` | `bool` | `false` | Tail the last 100 lines of the log file (only valid with `log`) |
+
+**Examples**
+
+```bash
+# Print the config directory path
+wsh gulinpath config
+
+# Print the data directory path
+wsh gulinpath data
+
+# Print the log file path
+wsh gulinpath log
+
+# Tail the last 100 log lines
+wsh gulinpath -t log
+
+# Open the config directory in a new block
+wsh gulinpath -o config
+
+# Open the data directory in Finder / file manager
+wsh gulinpath -O data
+```
+
+</Accordion>
+
+</AccordionGroup>

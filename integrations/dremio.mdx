@@ -1,0 +1,189 @@
+---
+title: "Query Dremio Big-Data Lakehouse with GuLiN Terminal"
+sidebarTitle: "Dremio"
+description: "GuLiN integrates with Dremio for big-data SQL analytics via the API Manager — authenticate, submit jobs, poll results, and render dashboards without leaving the terminal."
+---
+
+GuLiN integrates with **Dremio** for big-data SQL analytics via the [API Manager](/integrations/api-manager). Rather than using a proprietary driver, the agent follows Dremio's REST API protocol dynamically: it discovers the connection details from the API Manager registry, authenticates, submits SQL jobs, polls for completion, and fetches results — all automatically, in a single conversational turn.
+
+---
+
+## Architecture
+
+Dremio is registered as a named service inside the API Manager (conventionally named `dremio`). This means no Dremio-specific code is compiled into GuLiN — the agent reads the base URL and auth instructions from the vault at runtime and adapts accordingly.
+
+The agent follows a **dynamic protocol** each time you ask a Dremio question:
+
+1. Read the current registration from `apimanager_list`.
+2. Authenticate using the instructions stored in the vault.
+3. Submit the SQL query and track the asynchronous job.
+4. Retrieve and present the results.
+
+This design means you can point GuLiN at any Dremio instance (local, cloud, or Docker) simply by updating the registration — no code changes required.
+
+---
+
+## Dremio Endpoints Used
+
+| Step | Method | Endpoint | Purpose |
+|------|--------|----------|---------|
+| Login | `POST` | `/apiv2/login` | Exchange credentials for a session token |
+| Execute SQL | `POST` | `/api/v3/sql` | Submit a SQL query, returns a `jobid` |
+| Poll status | `GET` | `/api/v3/job/{jobid}` | Check whether the job is `COMPLETED`, `FAILED`, etc. |
+| Fetch results | `GET` | `/api/v3/job/{jobid}/results` | Download the result rows once the job completes |
+
+### Login
+
+```bash
+curl -X POST http://127.0.0.1:9047/apiv2/login \
+  -H "Content-Type: application/json" \
+  -d '{"userName": "{{username}}", "password": "{{password}}"}'
+# Response: { "token": "<session-token>", ... }
+```
+
+### Submit SQL
+
+```bash
+curl -X POST http://127.0.0.1:9047/api/v3/sql \
+  -H "Authorization: <session-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"sql": "SELECT region, SUM(sales) AS total FROM sales_data GROUP BY region"}'
+# Response: { "id": "<jobid>" }
+```
+
+### Poll Status
+
+```bash
+curl -X GET "http://127.0.0.1:9047/api/v3/job/<jobid>" \
+  -H "Authorization: <session-token>"
+# Response: { "jobState": "COMPLETED", ... }
+```
+
+### Fetch Results
+
+```bash
+curl -X GET "http://127.0.0.1:9047/api/v3/job/<jobid>/results" \
+  -H "Authorization: <session-token>"
+# Response: { "rows": [...], "rowCount": N, "schema": [...] }
+```
+
+---
+
+## Agent Workflow
+
+<Steps>
+  <Step title="Discover the service">
+    The agent calls `apimanager_list` to retrieve the registered Dremio entry — including the base URL (e.g. `http://127.0.0.1:9047`) and the `auth_instructions` that describe how to log in. This step ensures the agent always uses the current configuration without any hard-coded values.
+  </Step>
+
+  <Step title="Authenticate">
+    Following the auth instructions, the agent performs a `POST /apiv2/login` with the stored username and password. The response contains a session token that is used as the `Authorization` header for all subsequent calls.
+
+    ```json
+    {
+      "userName": "{{username}}",
+      "password": "{{password}}"
+    }
+    ```
+  </Step>
+
+  <Step title="Submit the SQL query">
+    The agent constructs the SQL based on your natural-language request and sends it to `POST /api/v3/sql`. Dremio responds with a `jobid` — a unique identifier for the asynchronous execution job.
+
+    ```json
+    {
+      "sql": "SELECT region, COUNT(*) AS orders FROM orders WHERE year = 2025 GROUP BY region ORDER BY orders DESC"
+    }
+    ```
+
+    The agent extracts the `jobid` from the response for use in the next steps.
+  </Step>
+
+  <Step title="Poll until completed">
+    The agent repeatedly calls `GET /api/v3/job/{jobid}` until the `jobState` field equals `COMPLETED`. If the state is `FAILED` or `CANCELED`, the agent reports the error and stops. The polling interval is managed automatically to avoid hammering the Dremio server.
+
+    <Warning>
+      GuLiN's **loop detector** monitors all tool calls. If the agent calls the same tool with identical parameters three or more times in a row, execution is blocked automatically to prevent runaway polling. If this triggers unexpectedly, verify that the `jobid` is being correctly extracted from the SQL submission response and that the Dremio job is progressing normally.
+    </Warning>
+  </Step>
+
+  <Step title="Fetch and handle results">
+    Once the job is `COMPLETED`, the agent calls `GET /api/v3/job/{jobid}/results` to download the result rows.
+
+    For **large datasets** (responses exceeding ~100 KB), the agent writes the raw JSON response to a local `.json` file rather than loading the entire payload into the chat context. This prevents context window saturation and keeps the terminal responsive.
+
+    ```bash
+    # Agent saves large results locally
+    curl -X GET "http://127.0.0.1:9047/api/v3/job/<jobid>/results" \
+      -H "Authorization: <session-token>" \
+      -o ~/dremio_results.json
+    ```
+
+    <Tip>
+      Once results are saved locally, use `jq` or a short Python script to filter and summarize before sending data to a dashboard. For example:
+
+      ```bash
+      # Extract only the top 10 rows with jq
+      jq '.rows[:10]' ~/dremio_results.json
+
+      # Sum a numeric column with Python
+      python3 -c "
+      import json
+      with open('dremio_results.json') as f:
+          data = json.load(f)
+      total = sum(row['total_sales'] for row in data['rows'])
+      print(f'Grand total: {total}')
+      "
+      ```
+
+      Send only the summary or the first rows to the dashboard renderer — this keeps response times fast even when the underlying dataset has millions of rows.
+    </Tip>
+  </Step>
+
+  <Step title="Render the dashboard">
+    After filtering, the agent structures the summary data into dashboard metadata and renders an interactive chart directly in the terminal. See the [Databases page](/integrations/database) for the full list of supported chart types and the `dashboard:type` / `dashboard:title` / `dashboard:data` metadata format.
+  </Step>
+</Steps>
+
+---
+
+## Protection Systems
+
+GuLiN implements three layers of protection specifically for Dremio integrations to ensure safe, reliable execution even when working with large enterprise datasets.
+
+### Loop Detector
+
+The execution engine monitors every tool call. If the agent attempts to invoke the same tool with the same parameters **three or more times consecutively**, the system halts automatically. This prevents infinite polling loops — for example, if a Dremio job stalls in a non-terminal state — and surfaces the issue as an explicit error rather than hanging indefinitely.
+
+### Credential Shield
+
+A filter in the agent's tool layer intercepts any attempt to use generic or hallucinated usernames (such as `admin` or `user`). When detected, the filter substitutes the actual stored credentials from the encrypted API Manager vault. This guarantees that even if the AI model tries to infer credentials from context, only the real registered values are ever sent to Dremio.
+
+### Large Data Handling
+
+Dremio queries over enterprise lakehouses can return hundreds of kilobytes or more of JSON. The agent is instructed never to flood the chat context with raw result data. The protocol is:
+
+1. **Download** the full result set to a local `.json` file.
+2. **Filter** using `jq` or Python to produce a concise summary.
+3. **Send only the summary** (or the first N rows) to the dashboard renderer.
+
+This three-step pattern keeps the AI context window clean, prevents token overuse, and ensures the dashboard renders quickly regardless of the underlying data volume.
+
+---
+
+## Registering Dremio in the API Manager
+
+If Dremio is not yet registered, you can set it up with a single instruction to the agent:
+
+```
+Register a Dremio service called "dremio" at http://127.0.0.1:9047.
+Auth instructions: POST /apiv2/login with body {"userName": "{{username}}", "password": "{{password}}"}.
+The response contains a "token" field. Use it directly as the Authorization header (no Bearer prefix) for all subsequent requests.
+Username is "myuser", password is "mypassword".
+```
+
+The agent calls `apimanager_register` and stores everything in the encrypted vault. From that point on, any Dremio question automatically triggers the full authentication-and-query workflow described above.
+
+<Info>
+  You can register multiple Dremio instances (development, staging, production) using different service names. Ask the agent to use a specific instance by referring to its registered name in your query.
+</Info>

@@ -1,0 +1,141 @@
+---
+title: "GuLiN Keyboard Shortcuts and Hotkey Configuration"
+sidebarTitle: "Keybindings"
+description: "Reference for every keyboard shortcut in GuLiN — global hotkeys, terminal shortcuts, block navigation, AI command completion, and developer tools."
+---
+
+GuLiN supports three categories of keyboard interaction: a **global hotkey** that works from any application on your desktop, **terminal shortcuts** that interact with the running shell, and **workspace navigation keys** that move focus between blocks and trigger the AI overlay. All behavior-changing keys are controlled through `settings.json` and can be adjusted with `wsh setconfig`.
+
+---
+
+## Keyboard Shortcuts Reference
+
+| Shortcut | Platform | Action |
+|----------|----------|--------|
+| `app:globalhotkey` (user-defined) | All | Bring GuLiN to the front from any application |
+| `#` then `Tab` | All | Invoke AI command prediction at the terminal prompt |
+| `Ctrl+Shift+→ / ← / ↑ / ↓` | All | Move focus to the next block in that direction |
+| `Ctrl+Shift` (hold) | All | Show numbered overlay on each block |
+| `Ctrl+V` | Windows / Linux | Paste from clipboard in the terminal (requires `app:ctrlvpaste=true`) |
+| `Cmd+Option+I` | macOS | Open Chrome DevTools for frontend debugging |
+| `Ctrl+Option+I` | Linux / Windows | Open Chrome DevTools for frontend debugging |
+
+---
+
+## Global Hotkey
+
+The `app:globalhotkey` setting registers a system-wide shortcut that raises the GuLiN window from any application — even when GuLiN is minimized or hidden behind other windows.
+
+<Note>
+  The modifier key syntax is OS-specific. On macOS use `Cmd`, `Option`, `Ctrl`, and `Shift`. On Linux and Windows use `Ctrl`, `Alt`, and `Shift`. Key names are case-insensitive and joined with `+`. For example: `Cmd+Option+G` (macOS) or `Ctrl+Alt+G` (Linux/Windows).
+</Note>
+
+```bash
+# macOS: bring GuLiN forward with Cmd+Option+G
+wsh setconfig app:globalhotkey="Cmd+Option+G"
+
+# Linux / Windows: bring GuLiN forward with Ctrl+Alt+G
+wsh setconfig app:globalhotkey="Ctrl+Alt+G"
+```
+
+To remove the global hotkey, set the value to an empty string:
+
+```bash
+wsh setconfig app:globalhotkey=""
+```
+
+---
+
+## AI Command Completion
+
+<Tip>
+  Typing `#` followed by `Tab` at the terminal prompt is the fastest way to invoke AI in GuLiN. Describe what you want to do in plain language, press `Tab`, and GuLiN predicts and inserts the shell command — ready to review and run.
+</Tip>
+
+At any terminal prompt, type `#` to start an AI query, then press `Tab` to trigger command prediction. GuLiN sends your description to the configured AI model and inserts the generated command directly into the prompt line. You can review, edit, and then execute it with `Enter`.
+
+This shortcut works with any shell (bash, zsh, fish, PowerShell) and uses the same AI model configured in the active preset.
+
+---
+
+## Ctrl+V Paste in Terminal
+
+On macOS, `Cmd+V` is the standard paste shortcut in the terminal. On Windows and Linux, terminals traditionally use `Ctrl+Shift+V`. Setting `app:ctrlvpaste=true` maps `Ctrl+V` to paste in the terminal, matching the behavior of most GUI applications on those platforms.
+
+```bash
+# Enable Ctrl+V paste (Windows / Linux recommended)
+wsh setconfig app:ctrlvpaste=true
+```
+
+<Note>
+  On macOS, enabling `app:ctrlvpaste` overrides `Ctrl+V`'s role as a shell control character. Only enable this setting if you do not rely on `Ctrl+V` for terminal escape sequences.
+</Note>
+
+---
+
+## Ctrl+Shift Block Navigation
+
+Holding `Ctrl+Shift` and pressing an arrow key moves keyboard focus to the adjacent block in that direction, allowing you to navigate a tiled layout entirely from the keyboard.
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Shift+→` | Focus the block to the right |
+| `Ctrl+Shift+←` | Focus the block to the left |
+| `Ctrl+Shift+↑` | Focus the block above |
+| `Ctrl+Shift+↓` | Focus the block below |
+
+To disable arrow-key navigation (for example, if it conflicts with a shell shortcut):
+
+```bash
+wsh setconfig app:disablectrlshiftarrows=true
+```
+
+---
+
+## Ctrl+Shift Block Number Overlay
+
+When you press and hold `Ctrl+Shift`, GuLiN overlays a number badge on each visible block. Pressing that number while still holding `Ctrl+Shift` instantly focuses the corresponding block — useful in dense layouts with many tiles.
+
+To disable this overlay while keeping arrow-key navigation:
+
+```bash
+wsh setconfig app:disablectrlshiftdisplay=true
+```
+
+---
+
+## Focus Follows Cursor
+
+The `app:focusfollowscursor` setting determines whether GuLiN automatically focuses a block when the mouse cursor enters it.
+
+| Value | Behavior |
+|-------|----------|
+| `off` | Focus only changes on explicit click (default) |
+| `on` | Any block gains focus when the cursor enters it |
+| `term` | Only terminal blocks gain focus automatically; other block types require a click |
+
+```bash
+# Auto-focus terminal blocks on hover, leave other blocks click-to-focus
+wsh setconfig app:focusfollowscursor=term
+
+# Auto-focus every block on hover
+wsh setconfig app:focusfollowscursor=on
+
+# Revert to manual click-to-focus
+wsh setconfig app:focusfollowscursor=off
+```
+
+---
+
+## DevTools
+
+GuLiN's frontend is built with web technologies. You can open Chrome DevTools to inspect elements, view console output, and debug the frontend.
+
+| Platform | Shortcut |
+|----------|----------|
+| macOS | `Cmd+Option+I` |
+| Linux / Windows | `Ctrl+Option+I` |
+
+<Note>
+  DevTools are intended for contributors and advanced users diagnosing frontend issues. Normal day-to-day use does not require opening DevTools.
+</Note>

@@ -1,0 +1,563 @@
+---
+title: "Tsunami VDom Components: Go-Native UI Building Blocks"
+sidebarTitle: "VDom Components"
+description: "Reference for Tsunami's virtual DOM system — creating elements with vdom.H, built-in UI components, Tailwind styling, event handling, and component lifecycle in Go."
+---
+
+Tsunami's virtual DOM system lets you build Go-native UI components that render server-side and stream to the GuLiN frontend in real time. Every piece of your app's UI is a `VDomElem` — a lightweight Go struct that describes a tag, its props, and its children. The engine diffs these trees on each render and sends only the changed patches over WebSocket.
+
+## VDom Basics
+
+Elements are plain Go structs defined in the `vdom` package:
+
+```go
+type VDomElem struct {
+    Tag      string         `json:"tag"`
+    Props    map[string]any `json:"props,omitempty"`
+    Children []VDomElem     `json:"children,omitempty"`
+    Text     string         `json:"text,omitempty"`
+}
+```
+
+You never construct `VDomElem` directly. Instead you use the `vdom.H` helper, which mirrors the JSX factory pattern from React. The engine maintains a persistent **shadow component tree** (`ComponentImpl`) that survives between renders. On each cycle, it reconciles new `VDomElem` input against the shadow tree and produces a minimal diff — only changed nodes are serialized and pushed to the frontend.
+
+There are three node patterns:
+
+- **Text nodes** (`#text`) — leaf nodes that hold a string value.
+- **Base / DOM elements** — standard HTML tags (`div`, `span`, `button`, etc.) that hold `Children`.
+- **Custom components** — user-defined Go functions registered with `app.DefineComponent`; they transform into base elements via their render functions.
+
+## Creating Elements
+
+### `vdom.H` — the element factory
+
+`vdom.H` is the primary function for creating virtual DOM elements. It accepts a tag name, a props map, and a variadic list of children:
+
+```go
+func H(tag string, props map[string]any, children ...any) *VDomElem
+```
+
+Children can be strings, `VDomElem`, `*VDomElem`, slices, booleans, numeric types, or any other value (converted via `fmt.Sprint`). `nil` children are silently removed.
+
+```go
+vdom.H("div", map[string]any{
+    "className": "flex items-center gap-2 p-4",
+},
+    vdom.H("h1", map[string]any{
+        "className": "text-2xl font-bold",
+    }, "Hello, GuLiN"),
+    vdom.H("span", nil, "Current time: ", time.Now().Format("15:04:05")),
+)
+```
+
+### Conditional rendering
+
+Use `vdom.If` to include a child only when a condition is true, and `vdom.IfElse` for a ternary-style choice:
+
+```go
+func If(cond bool, part any) any
+func IfElse(cond bool, part any, elsePart any) any
+func Ternary[T any](cond bool, trueRtn T, falseRtn T) T
+```
+
+```go
+vdom.H("div", map[string]any{
+    "className": vdom.Classes(
+        "p-2 border rounded",
+        vdom.If(isActive, "border-accent"),
+        vdom.IfElse(isActive, "text-primary", "text-muted"),
+    ),
+},
+    vdom.If(showBadge, vdom.H("span", map[string]any{"className": "badge"}, "New")),
+    labelText,
+)
+```
+
+### Rendering lists
+
+`vdom.ForEach` maps a Go slice to a `[]any` of elements:
+
+```go
+func ForEach[T any](items []T, fn func(T, int) any) []any
+```
+
+```go
+vdom.H("ul", map[string]any{"className": "flex flex-col gap-1"},
+    vdom.ForEach(items, func(item Item, idx int) any {
+        return vdom.H("li", map[string]any{
+            "key":       item.Id,
+            "className": "p-2 border border-border rounded",
+        }, item.Name).WithKey(item.Id)
+    }),
+)
+```
+
+Always set a `key` on list items to enable key-based reconciliation. Use `.WithKey(key)` on the returned element, especially when rendering custom components whose prop types don't include a key field:
+
+```go
+func (e *VDomElem) WithKey(key any) *VDomElem
+```
+
+### Composing class names
+
+`vdom.Classes` works like the JavaScript `clsx` library — it accepts strings, `nil`, `[]string`, and `map[string]bool` values and joins the results into a single space-separated class string:
+
+```go
+func Classes(classes ...any) string
+```
+
+```go
+"className": vdom.Classes(
+    "px-4 py-2 rounded transition-colors",
+    vdom.If(isDisabled, "opacity-50 cursor-not-allowed"),
+    map[string]bool{
+        "bg-accent text-primary": isPrimary,
+        "bg-panel text-secondary": !isPrimary,
+    },
+),
+```
+
+## Defining Components
+
+Register a component with `app.DefineComponent`. The render function receives typed props and must return a value that can be converted to `VDomElem` — typically `*VDomElem`, a `VDomElem`, or `nil`:
+
+```go
+func DefineComponent[P any](name string, renderFn func(props P) any) vdom.Component[P]
+```
+
+```go
+type StatusBadgeProps struct {
+    Label  string `json:"label"`
+    Active bool   `json:"active"`
+}
+
+var StatusBadge = app.DefineComponent("StatusBadge", func(props StatusBadgeProps) any {
+    return vdom.H("span", map[string]any{
+        "className": vdom.Classes(
+            "text-xs px-2 py-0.5 rounded-full font-medium",
+            vdom.IfElse(props.Active,
+                "bg-success text-primary",
+                "bg-panel text-muted"),
+        ),
+    }, props.Label)
+})
+```
+
+Invoke a component like a regular Go function, passing its props struct:
+
+```go
+StatusBadge(StatusBadgeProps{Label: "Online", Active: true})
+```
+
+## State: Atoms and Hooks
+
+### `app.UseLocal` — component-local state
+
+`UseLocal` creates an `Atom[T]` scoped to the current component instance. It is automatically removed when the component unmounts:
+
+```go
+func UseLocal[T any](initialVal T) Atom[T]
+```
+
+Atoms have three mutation methods:
+
+| Method | Description |
+|---|---|
+| `atom.Get() T` | Read the current value. Registers the component as a dependent. |
+| `atom.Set(newVal T)` | Replace the value and schedule a re-render. Cannot be called during render. |
+| `atom.SetFn(fn func(T) T)` | Apply a function to a deep copy of the current value. Safe for slices and structs. |
+
+```go
+var MyComp = app.DefineComponent("MyComp", func(_ any) any {
+    countAtom := app.UseLocal(0)
+    nameAtom  := app.UseLocal("world")
+
+    return vdom.H("div", nil,
+        vdom.H("p", nil, "Hello, ", nameAtom.Get()),
+        vdom.H("button", map[string]any{
+            "onClick": func() { countAtom.Set(countAtom.Get() + 1) },
+        }, "Count: ", countAtom.Get()),
+    )
+})
+```
+
+### `app.UseEffect` — side effects
+
+`UseEffect` queues a function to run after the render cycle. It mirrors React's `useEffect`, including dependency-based scheduling and cleanup functions:
+
+```go
+func UseEffect(fn func() func(), deps []any)
+```
+
+```go
+app.UseEffect(func() func() {
+    conn := openConnection(url)
+    return func() { conn.Close() } // cleanup on unmount or dep change
+}, []any{url})
+```
+
+Pass `nil` as deps to run on every render; pass an empty slice `[]any{}` to run only on mount.
+
+### `app.UseTicker` — periodic updates
+
+`UseTicker` manages a repeating ticker whose goroutine is automatically cancelled when deps change or the component unmounts:
+
+```go
+func UseTicker(interval time.Duration, tickFn func(), deps []any)
+```
+
+```go
+dataAtom := app.UseLocal(fetchData())
+
+app.UseTicker(5*time.Second, func() {
+    dataAtom.Set(fetchData())
+}, []any{})
+```
+
+### `app.UseGoRoutine` — long-running background work
+
+`UseGoRoutine` spawns a goroutine and cancels its context when deps change or the component unmounts:
+
+```go
+func UseGoRoutine(fn func(ctx context.Context), deps []any)
+```
+
+```go
+app.UseGoRoutine(func(ctx context.Context) {
+    for {
+        select {
+        case <-ctx.Done():
+            return
+        case msg := <-stream:
+            logsAtom.SetFn(func(logs []string) []string {
+                return append(logs, msg)
+            })
+            app.SendAsyncInitiation()
+        }
+    }
+}, []any{streamId})
+```
+
+Call `app.SendAsyncInitiation()` whenever background work changes atom state outside of an event handler — this tells the frontend to request a fresh render.
+
+### `app.UseAfter` — one-shot timers
+
+`UseAfter` fires once after a duration and is cancelled if deps change or the component unmounts:
+
+```go
+func UseAfter(duration time.Duration, timeoutFn func(), deps []any)
+```
+
+### `app.UseRef` and `app.UseVDomRef`
+
+`UseRef[T]` provides a mutable ref that persists across re-renders without triggering them:
+
+```go
+func UseRef[T any](val T) *vdom.VDomSimpleRef[T]
+```
+
+`UseVDomRef` returns a `*vdom.VDomRef` that can be attached to a DOM element for direct access (focus, scroll, position tracking):
+
+```go
+func UseVDomRef() *vdom.VDomRef
+```
+
+Attach a DOM ref via the `"ref"` prop and queue imperative operations with `app.QueueRefOp`:
+
+```go
+inputRef := app.UseVDomRef()
+
+app.UseEffect(func() func() {
+    app.QueueRefOp(inputRef, vdom.VDomRefOperation{Op: "focus"})
+    return nil
+}, []any{shouldFocus})
+
+vdom.H("input", map[string]any{
+    "ref":       inputRef,
+    "className": "p-2 border rounded",
+})
+```
+
+### Modal hooks
+
+`UseAlertModal` and `UseConfirmModal` integrate with GuLiN's native modal system:
+
+```go
+func UseAlertModal() (modalOpen bool, triggerAlert func(config ModalConfig))
+func UseConfirmModal() (modalOpen bool, triggerConfirm func(config ModalConfig))
+```
+
+```go
+_, triggerConfirm := app.UseConfirmModal()
+
+deleteBtn := vdom.H("button", map[string]any{
+    "onClick": func() {
+        triggerConfirm(app.ModalConfig{
+            Icon:   "🗑️",
+            Title:  "Delete item?",
+            Text:   "This action cannot be undone.",
+            OkText: "Delete",
+            OnResult: func(confirmed bool) {
+                if confirmed {
+                    itemsAtom.SetFn(removeItem(targetId))
+                }
+            },
+        })
+    },
+}, "Delete")
+```
+
+## Global State: `DataAtom`, `ConfigAtom`, `SharedAtom`
+
+For state that lives outside any single component, use the module-level atom constructors:
+
+```go
+// Persisted across renders, scoped to the "$data." namespace
+var rowsAtom = app.DataAtom("rows", []Row{}, nil)
+
+// User-facing configuration, scoped to "$config."
+var refreshInterval = app.ConfigAtom("refreshInterval", 5000, &app.AtomMeta{
+    Desc:  "Data refresh interval in milliseconds",
+    Units: "ms",
+    Min:   app.Ptr(float64(1000)),
+})
+
+// Shared internal state, scoped to "$shared."
+var connectionState = app.SharedAtom("connectionState", "disconnected")
+```
+
+## Built-in UI Components
+
+### Table — `ui.MakeTableComponent`
+
+The `tsunami/ui` package provides a feature-complete, generic table component with sorting, pagination, row selection, and custom cell renderers. Create a table component for any Go type with:
+
+```go
+func MakeTableComponent[T any](componentName string) vdom.Component[TableProps[T]]
+```
+
+**`TableProps[T]`** — the props accepted by table components:
+
+```go
+type TableProps[T any] struct {
+    Data              []T
+    Columns           []TableColumn[T]
+    RowRender         func(ctx RowContext[T]) any           // override full row rendering
+    RowClassName      func(ctx RowContext[T]) string
+    OnRowClick        func(row T, idx int)
+    OnSort            func(column string, direction string)
+    DefaultSort       string
+    Pagination        *PaginationConfig
+    Selectable        bool
+    SelectedRows      []int
+    OnSelectionChange func(selectedRows []int)
+}
+```
+
+**`TableColumn[T]`** — column definition:
+
+```go
+type TableColumn[T any] struct {
+    AccessorKey     string                         // field name on the row struct
+    AccessorFn      func(rowCtx RowContext[T]) any // computed value
+    Header          string                         // display label
+    Width           string
+    Sortable        bool
+    CellClassName   string
+    HeaderClassName string
+    CellRender      func(ctx CellContext[T]) any   // custom cell renderer
+    HeaderRender    func(ctx HeaderContext) any     // custom header renderer
+}
+```
+
+**Example** — a sortable, paginated process table:
+
+```go
+type Process struct {
+    PID    int    `json:"pid"`
+    Name   string `json:"name"`
+    CPU    float64 `json:"cpu"`
+    Memory int64  `json:"memory"`
+}
+
+var ProcessTable = ui.MakeTableComponent[Process]("ProcessTable")
+
+var App = app.DefineComponent("App", func(_ any) any {
+    procsAtom := app.UseLocal([]Process{})
+
+    app.UseTicker(3*time.Second, func() {
+        procsAtom.Set(fetchProcesses())
+    }, []any{})
+
+    return ProcessTable(ui.TableProps[Process]{
+        Data: procsAtom.Get(),
+        Columns: []ui.TableColumn[Process]{
+            {AccessorKey: "PID",    Header: "PID",    Width: "80px",  Sortable: true},
+            {AccessorKey: "Name",   Header: "Process", Sortable: true},
+            {AccessorKey: "CPU",    Header: "CPU %",   Sortable: true},
+            {AccessorKey: "Memory", Header: "Memory",  Sortable: true,
+                CellRender: func(ctx ui.CellContext[Process]) any {
+                    mb := ctx.Data.Memory / 1024 / 1024
+                    return vdom.H("span", nil, fmt.Sprintf("%d MB", mb))
+                },
+            },
+        },
+        DefaultSort: "CPU",
+        Pagination:  &ui.PaginationConfig{PageSize: 25, CurrentPage: 0},
+    })
+})
+```
+
+## Tailwind CSS
+
+Every Tsunami scaffold includes **Tailwind CSS v4** (via `@tailwindcss/cli`). The scaffold's `tailwind.css` defines a full design-token theme aligned with GuLiN's visual language — dark background, accent greens, semantic color roles, and monospace fonts.
+
+<Note>
+  The scaffold's Tailwind configuration is pre-wired. You apply styles by passing class strings as the `className` prop in `vdom.H`. No Tailwind configuration file needs to be modified for standard usage. Use `vdom.Classes(...)` to combine multiple conditional class strings cleanly.
+</Note>
+
+Key theme tokens available as Tailwind utilities:
+
+| Token | Usage | Value |
+|---|---|---|
+| `bg-background` | App background | `rgb(34, 34, 34)` |
+| `text-primary` | Headings, bold text | `rgb(247, 247, 247)` |
+| `text-secondary` | Body text | `rgba(215, 218, 224, 0.7)` |
+| `text-muted` | Fine / faint text | `rgba(215, 218, 224, 0.5)` |
+| `text-accent` / `bg-accent` | Accent (green) | `rgb(88, 193, 66)` |
+| `border-border` | Standard border | `rgba(255, 255, 255, 0.16)` |
+| `bg-panel` | Panel / card background | `rgba(255, 255, 255, 0.12)` |
+| `bg-hoverbg` | Hover highlight | `rgba(255, 255, 255, 0.16)` |
+
+```go
+vdom.H("div", map[string]any{
+    "className": "bg-panel border border-border rounded p-4 flex flex-col gap-2",
+},
+    vdom.H("h2", map[string]any{"className": "text-title text-primary font-semibold"}, title),
+    vdom.H("p",  map[string]any{"className": "text-secondary text-default"}, body),
+)
+```
+
+## Event Handling
+
+User interactions are sent from the frontend to the Go handler as `VDomEvent` values. Attach handlers by setting the corresponding prop — `onClick`, `onChange`, `onKeyDown`, `onSubmit` — to a Go function.
+
+### Click events
+
+```go
+vdom.H("button", map[string]any{
+    "onClick": func() {
+        countAtom.Set(countAtom.Get() + 1)
+    },
+}, "Increment")
+```
+
+For access to mouse coordinates and modifiers, accept a `vdom.VDomEvent` argument:
+
+```go
+"onClick": func(e vdom.VDomEvent) {
+    if e.MouseData != nil && e.MouseData.Cmd {
+        handleCmdClick()
+    }
+},
+```
+
+### Input / change events
+
+`vdom.VDomEvent.TargetValue` carries the current value of an `input`, `textarea`, or `select`:
+
+```go
+vdom.H("input", map[string]any{
+    "type":      "text",
+    "value":     queryAtom.Get(),
+    "onChange": func(e vdom.VDomEvent) {
+        queryAtom.Set(e.TargetValue)
+    },
+})
+```
+
+For checkboxes use `e.TargetChecked`:
+
+```go
+"onChange": func(e vdom.VDomEvent) {
+    enabledAtom.Set(e.TargetChecked)
+},
+```
+
+### Keyboard events
+
+`VDomFunc` lets you capture specific keys and control propagation. Assign it as the `onKeyDown` prop:
+
+```go
+keyDown := &vdom.VDomFunc{
+    Type:            vdom.ObjectType_Func,
+    Fn:              func(e vdom.VDomEvent) { handleEnter() },
+    StopPropagation: true,
+    PreventDefault:  true,
+    Keys:            []string{"Enter", "Cmd:Enter"},
+}
+
+vdom.H("input", map[string]any{
+    "onKeyDown": keyDown,
+    "value":     inputAtom.Get(),
+    "onChange":  func(e vdom.VDomEvent) { inputAtom.Set(e.TargetValue) },
+})
+```
+
+`vdom.VDomKeyboardEvent` (available via `e.KeyData`) exposes `Key`, `Code`, `Shift`, `Control`, `Alt`, `Meta`, `Cmd`, and `Option` fields.
+
+### Form submit events
+
+`vdom.VDomFormData` (available via `e.FormData`) provides `Fields` and `Files` maps:
+
+```go
+"onSubmit": func(e vdom.VDomEvent) {
+    if e.FormData != nil {
+        username := e.FormData.GetField("username")
+        password := e.FormData.GetField("password")
+        handleLogin(username, password)
+    }
+},
+```
+
+## Component Lifecycle
+
+Tsunami's lifecycle closely mirrors React's, with a few Go-specific differences.
+
+### Mount
+
+A component mounts the first time it appears in a rendered tree. Its hooks are initialized in declaration order. Effects registered with `UseEffect` run after the first render.
+
+### Update
+
+An update is triggered when:
+
+- An atom that the component read during its last render is updated with `Set` or `SetFn`.
+- A parent re-renders and passes different props.
+- `app.SendAsyncInitiation()` is called from a background goroutine.
+
+The engine re-calls the render function, reconciles the new `VDomElem` tree against the shadow tree, and sends diffs to the frontend.
+
+### Unmount
+
+A component unmounts when it is no longer present in the rendered tree. On unmount:
+
+1. All `UseEffect` cleanup functions are called.
+2. All `UseLocal` atoms are removed from the atom store.
+3. Any goroutines started by `UseGoRoutine`, `UseTicker`, or `UseAfter` have their contexts cancelled.
+4. The component is removed from the global `ComponentMap`.
+
+This automatic cleanup means you generally don't need to manage goroutine or atom lifecycles by hand.
+
+### Returning `nil`
+
+A component that returns `nil` from its render function stays mounted — it keeps all its state and hooks — but contributes nothing to the rendered output. This is useful for components that conditionally show UI:
+
+```go
+var OptionalBanner = app.DefineComponent("OptionalBanner", func(props BannerProps) any {
+    if !props.Visible {
+        return nil // mounted but invisible; state is preserved
+    }
+    return vdom.H("div", map[string]any{"className": "p-4 bg-panel rounded"}, props.Message)
+})
+```
