@@ -16,13 +16,13 @@ GuLiN includes a fully functional embedded web browser as a first-class workspac
     Use `wsh` to create a web block programmatically from any terminal:
 
     ```bash
-    wsh createblock --view=web
+    wsh createblock web
     ```
 
-    You can also open a specific URL directly:
+    You can also open a specific URL directly by passing it as a `key=value` argument:
 
     ```bash
-    wsh createblock --view=web --meta='{"url":"https://docs.gulin.dev"}'
+    wsh createblock web url=https://docs.gulin.dev
     ```
   </Tab>
 </Tabs>

@@ -103,7 +103,7 @@ curl -X GET "http://127.0.0.1:9047/api/v3/job/<jobid>/results" \
     The agent repeatedly calls `GET /api/v3/job/{jobid}` until the `jobState` field equals `COMPLETED`. If the state is `FAILED` or `CANCELED`, the agent reports the error and stops. The polling interval is managed automatically to avoid hammering the Dremio server.
 
     <Warning>
-      GuLiN's **loop detector** monitors all tool calls. If the agent calls the same tool with identical parameters three or more times in a row, execution is blocked automatically to prevent runaway polling. If this triggers unexpectedly, verify that the `jobid` is being correctly extracted from the SQL submission response and that the Dremio job is progressing normally.
+      GuLiN's **loop detector** monitors all tool calls. If the agent calls the same tool with identical parameters more than three times in a row, execution is blocked automatically to prevent runaway polling. If this triggers unexpectedly, verify that the `jobid` is being correctly extracted from the SQL submission response and that the Dremio job is progressing normally.
     </Warning>
   </Step>
 
@@ -153,7 +153,7 @@ GuLiN implements three layers of protection specifically for Dremio integrations
 
 ### Loop Detector
 
-The execution engine monitors every tool call. If the agent attempts to invoke the same tool with the same parameters **three or more times consecutively**, the system halts automatically. This prevents infinite polling loops — for example, if a Dremio job stalls in a non-terminal state — and surfaces the issue as an explicit error rather than hanging indefinitely.
+The execution engine monitors every tool call. If the agent attempts to invoke the same tool with the same parameters **more than three times consecutively**, the system halts automatically. This prevents infinite polling loops — for example, if a Dremio job stalls in a non-terminal state — and surfaces the issue as an explicit error rather than hanging indefinitely.
 
 ### Credential Shield
 

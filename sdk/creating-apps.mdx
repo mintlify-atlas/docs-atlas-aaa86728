@@ -8,7 +8,7 @@ This guide walks you through creating a GulinApp from scratch — from enabling 
 
 ## Prerequisites
 
-You need a working Go installation (1.25.6+) and a clone of the GuLiN repository so the SDK `replace` directive in `go.mod` can resolve locally. The Tsunami build system uses [Task](https://taskfile.dev) for build targets.
+You need a working Go installation (1.22+) and a clone of the GuLiN repository so the SDK `replace` directive in `go.mod` can resolve locally. The Tsunami build system uses [Task](https://taskfile.dev) for build targets.
 
 ## Creating Your First App
 
@@ -248,12 +248,12 @@ The `dist/` directory is generated at build time and should be listed in `.gitig
 
 The repository ships several ready-to-run demos under `tsunami/demo/`. Each demonstrates a different pattern:
 
-| Demo | Task | What it shows |
+| Demo | How to run | What it shows |
 |---|---|---|
 | `todo` | `task tsunami:demo:todo` | Multi-component composition, `UseLocal` state, `ForEach` rendering |
-| `cpuchart` | `task tsunami:demo:cpuchart` | `UseTicker` for periodic polling, recharts integration |
-| `tabletest` | `task tsunami:demo:tabletest` | `ui.MakeTableComponent` with sorting and pagination |
-| `pomodoro` | `task tsunami:demo:pomodoro` | Timer lifecycle with `UseGoRoutine` |
-| `modaltest` | `task tsunami:demo:modaltest` | `UseAlertModal` and `UseConfirmModal` hooks |
+| `cpuchart` | `cd tsunami && go run demo/cpuchart/*.go` | `UseTicker` for periodic polling, recharts integration |
+| `tabletest` | `cd tsunami && go run demo/tabletest/*.go` | `ui.MakeTableComponent` with sorting and pagination |
+| `pomodoro` | `cd tsunami && go run demo/pomodoro/*.go` | Timer lifecycle with `UseGoRoutine` |
+| `modaltest` | `cd tsunami && go run demo/modaltest/*.go` | `UseAlertModal` and `UseConfirmModal` hooks |
 
 Run any demo to see a live Tsunami app in your GuLiN workspace before writing your own.

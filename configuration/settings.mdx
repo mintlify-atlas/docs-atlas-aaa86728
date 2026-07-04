@@ -1,7 +1,7 @@
 ---
-title: "Configuring GuLiN Terminal: Settings Reference"
+title: "GuLiN Terminal Settings Reference: All Configuration Keys"
 sidebarTitle: "Settings"
-description: "Complete reference for GuLiN's settings.json, covering every namespace:key pair — from terminal fonts and AI tokens to window behavior and auto-update controls."
+description: "Complete reference for GuLiN's settings.json — every namespace:key pair from terminal fonts and AI tokens to window layout and auto-update controls."
 ---
 
 GuLiN stores all user preferences in a single JSON file called `settings.json`. Every key follows a `namespace:key` pattern (for example, `term:fontsize` or `window:tilegapsize`), making it straightforward to find, edit, or script any option. Changes to the file are picked up live — no restart is required.
@@ -156,7 +156,7 @@ wsh setconfig term:fontsize=15 term:fontfamily="Fira Code" term:copyonselect=fal
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `web:defaulturl` | string | `"https://github.com/..."` | The URL loaded when a new web block is opened. |
+| `web:defaulturl` | string | `"https://github.com/jorgeurtubiam-ship-it/Gulin_ia.git"` | The URL loaded when a new web block is opened. |
 | `web:defaultsearch` | string | `"https://www.google.com/search?q={query}"` | Search engine template; `{query}` is replaced with the typed text. |
 | `web:openlinksinternally` | boolean | — | Open clicked links inside a GuLiN web block instead of the system browser. |
 
